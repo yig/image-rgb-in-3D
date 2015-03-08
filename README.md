@@ -6,5 +6,7 @@ Requires WebGL.
 
 # Credits
 
+Code is based off of [THREE.js example webgl_buffergeometry_particles](http://threejs.org/examples/webgl_buffergeometry_particles.html).
+
 [Oranges](http://www.ars.usda.gov/is/graphics/photos/k3644-12.html) and [pigs](http://www.ars.usda.gov/is/graphics/photos/mar05/k9455-9.htm)
 photos are public domain, from the US Department of Agriculture. (Pigs photo is by Scott Bauer.)
