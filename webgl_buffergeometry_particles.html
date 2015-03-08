@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>three.js webgl - buffergeometry [particles]</title>
+		<title>Render image as an RGB point cloud</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
@@ -31,12 +31,14 @@
 	<body>
 
 		<div id="container"></div>
-		<div id="info"><a href="http://threejs.org" target="_blank">three.js</a> webgl - buffergeometry - particles</div>
+		<div id="info">Render image as an RGB point cloud: <a id="image" href="#" target="_blank">image</a></div>
 
 		<script src="js/three.min.js"></script>
 
+        <script src="js/controls/TrackballControls.js"></script>
 		<script src="js/Detector.js"></script>
 		<script src="js/libs/stats.min.js"></script>
+		<script src="js/purl.js"></script>
 
 		<script>
 
@@ -44,28 +46,47 @@
 
 			var container, stats;
 
-			var camera, scene, renderer;
+			var camera, scene, renderer, controls;
 
 			var mesh;
+			
+			var img;
 
-			init();
-			animate();
-
-			function init() {
-
-				container = document.getElementById( 'container' );
-
-				//
-
-				camera = new THREE.PerspectiveCamera( 27, window.innerWidth / window.innerHeight, 5, 3500 );
-				camera.position.z = 2750;
-
-				scene = new THREE.Scene();
-				scene.fog = new THREE.Fog( 0x050505, 2000, 3500 );
-
-				//
-
-				var particles = 500000;
+            initImage( decodeURI( purl().param('image') ) );
+            
+            function initImage( url )
+            {
+                img = new Image();
+                // Set the crossOrigin property.
+                // From: http://stackoverflow.com/questions/19869150/html5-canvas-element-getimagedata-cross-origin-error
+                img.crossOrigin = '';
+                img.src = url;
+                // Wait until loaded.
+                // From: http://stackoverflow.com/questions/280049/javascript-callback-for-knowing-when-an-image-is-loaded/24201249#24201249
+                if( img.complete ) {
+                    init3D();
+                } else {
+                    img.addEventListener( 'load', init3D );
+                    img.addEventListener( 'error', function() { alert('Error loading image: ' + url ); } );
+                }
+                
+                var image_element = document.getElementById('image');
+                image_element.href = url;
+                image_element.innerHTML = url;
+            }
+			function createParticles()
+            {
+				// Get the particles from the image's pixels.
+				// From: http://stackoverflow.com/questions/1041399/how-to-use-javascript-or-jquery-to-read-a-pixel-of-an-image
+				var canvas = document.createElement('canvas');
+				canvas.width = img.width;
+				canvas.height = img.height;
+				var ctx = canvas.getContext("2d");
+				ctx.drawImage( img, 0, 0 );
+				// getImageData returns an RGBA byte array.
+				var pixels = ctx.getImageData( 0, 0, img.width, img.height ).data;
+                
+				var particles = img.width*img.height;
 
 				var geometry = new THREE.BufferGeometry();
 
@@ -74,31 +95,23 @@
 
 				var color = new THREE.Color();
 
-				var n = 1000, n2 = n / 2; // particles spread in the cube
-
-				for ( var i = 0; i < positions.length; i += 3 ) {
-
-					// positions
-
-					var x = Math.random() * n - n2;
-					var y = Math.random() * n - n2;
-					var z = Math.random() * n - n2;
-
-					positions[ i ]     = x;
-					positions[ i + 1 ] = y;
-					positions[ i + 2 ] = z;
+				for ( var i = 0; i < positions.length; i += 1 ) {
 
 					// colors
 
-					var vx = ( x / n ) + 0.5;
-					var vy = ( y / n ) + 0.5;
-					var vz = ( z / n ) + 0.5;
+					var r = pixels[ 4*i + 0 ]/255.;
+					var g = pixels[ 4*i + 1 ]/255.;
+					var b = pixels[ 4*i + 2 ]/255.;
+					
+					positions[ 3*i + 0 ] = r;
+					positions[ 3*i + 1 ] = g;
+					positions[ 3*i + 2 ] = b;
 
-					color.setRGB( vx, vy, vz );
+					color.setRGB( r, g, b );
 
-					colors[ i ]     = color.r;
-					colors[ i + 1 ] = color.g;
-					colors[ i + 2 ] = color.b;
+					colors[ 3*i + 0 ] = color.r;
+					colors[ 3*i + 1 ] = color.g;
+					colors[ 3*i + 2 ] = color.b;
 
 				}
 
@@ -109,15 +122,109 @@
 
 				//
 
-				var material = new THREE.PointCloudMaterial( { size: 15, vertexColors: THREE.VertexColors } );
+				var material = new THREE.PointCloudMaterial( { size: 2/255., vertexColors: THREE.VertexColors } );
 
 				particleSystem = new THREE.PointCloud( geometry, material );
-				scene.add( particleSystem );
+				return particleSystem;
+			}
+			
+            function buildAxis( src, dst, colorHex, dashed ) {
+                // From: http://soledadpenades.com/articles/three-js-tutorials/drawing-the-coordinate-axes/
+                var geom = new THREE.Geometry();
+                var mat;
+                
+                if( dashed ) {
+                    mat = new THREE.LineDashedMaterial({ linewidth: 1, color: colorHex, dashSize: 10/255., gapSize: 5/255. });
+                } else {
+                    mat = new THREE.LineBasicMaterial({ linewidth: 2, color: colorHex });
+                }
+                
+                geom.vertices.push( src.clone() );
+                geom.vertices.push( dst.clone() );
+                geom.computeLineDistances(); // This one is SUPER important, otherwise dashed lines will appear as simple plain lines
+                
+                var axis = new THREE.Line( geom, mat, THREE.LinePieces );
+                
+                return axis;
+            }
+			function buildAxes( length )
+			{
+			    // From: http://soledadpenades.com/articles/three-js-tutorials/drawing-the-coordinate-axes/
+                var axes = new THREE.Object3D();
+                axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( length, 0, 0 ), 0xFF0000, false ) ); // +X
+                // axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( -length, 0, 0 ), 0xFF0000, true) ); // -X
+                axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, length, 0 ), 0x00FF00, false ) ); // +Y
+                // axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, -length, 0 ), 0x00FF00, true ) ); // -Y
+                axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, length ), 0x0000FF, false ) ); // +Z
+                // axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, -length ), 0x0000FF, true ) ); // -Z
+                
+                // XY
+                axes.add( buildAxis( new THREE.Vector3( length, 0, 0 ), new THREE.Vector3( length, length, 0 ), 0xFFFF00, true) );
+                axes.add( buildAxis( new THREE.Vector3( 0, length, 0 ), new THREE.Vector3( length, length, 0 ), 0xFFFF00, true) );
+                
+                // YZ
+                axes.add( buildAxis( new THREE.Vector3( 0, length, 0 ), new THREE.Vector3( 0, length, length ), 0x00FFFF, true) );
+                axes.add( buildAxis( new THREE.Vector3( 0, 0, length ), new THREE.Vector3( 0, length, length ), 0x00FFFF, true) );
+                
+                // XZ
+                axes.add( buildAxis( new THREE.Vector3( length, 0, 0 ), new THREE.Vector3( length, 0, length ), 0xFF00FF, true) );
+                axes.add( buildAxis( new THREE.Vector3( 0, 0, length ), new THREE.Vector3( length, 0, length ), 0xFF00FF, true) );
+                
+                // XY from 1,1,1
+                axes.add( buildAxis( new THREE.Vector3( length, length, length ), new THREE.Vector3( length, length, 0 ), 0xFFFFFF, true) );
+                
+                // YZ from 1,1,1
+                axes.add( buildAxis( new THREE.Vector3( length, length, length ), new THREE.Vector3( 0, length, length ), 0xFFFFFF, true) );
+                
+                // XZ from 1,1,1
+                axes.add( buildAxis( new THREE.Vector3( length, length, length ), new THREE.Vector3( length, 0, length ), 0xFFFFFF, true) );
+                
+                return axes;
+			}
+			
+			function initControls( camera ) {
+			    controls = new THREE.TrackballControls( camera );
+			    controls.target.set( .5, .5, .5 );
+			    
+			    controls.rotateSpeed = 1.0;
+				controls.zoomSpeed = 1.2;
+				controls.panSpeed = 0.8;
+
+				controls.noZoom = false;
+				controls.noPan = false;
+
+				controls.staticMoving = true;
+				controls.dynamicDampingFactor = 0.3;
+
+				// controls.keys = [ 65, 83, 68 ];
+
+				controls.addEventListener( 'change', render );
+			}
+			
+			function init3D() {
+
+				container = document.getElementById( 'container' );
 
 				//
 
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10 );
+				camera.position.set( .5, .5, 3 );
+				camera.lookAt( new THREE.Vector3( .5, .5, .5 ) );
+				// camera = new THREE.OrthographicCamera( -1, 2, 2, -1, 1, 4 );
+				// camera.position.z = 4;
+
+				scene = new THREE.Scene();
+				// scene.fog = new THREE.Fog( 0x050505, 2000, 3500 );
+                
+                //
+                
+				scene.add( buildAxes( 1. ) );
+                scene.add( createParticles() );
+				
+				//
+
 				renderer = new THREE.WebGLRenderer( { antialias: false } );
-				renderer.setClearColor( scene.fog.color );
+				// renderer.setClearColor( scene.fog.color );
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 
@@ -128,12 +235,18 @@
 				stats = new Stats();
 				stats.domElement.style.position = 'absolute';
 				stats.domElement.style.top = '0px';
+				stats.domElement.style.right = '0px';
 				container.appendChild( stats.domElement );
 
 				//
 
 				window.addEventListener( 'resize', onWindowResize, false );
-
+                
+                initControls( camera );
+                
+                // Start drawing
+                animate();
+                render();
 			}
 
 			function onWindowResize() {
@@ -142,29 +255,22 @@
 				camera.updateProjectionMatrix();
 
 				renderer.setSize( window.innerWidth, window.innerHeight );
-
+                
+                controls.handleResize();
+                
+                render();
 			}
 
 			//
 
 			function animate() {
-
 				requestAnimationFrame( animate );
-
-				render();
-				stats.update();
-
+                controls.update();
 			}
 
 			function render() {
-
-				var time = Date.now() * 0.001;
-
-				particleSystem.rotation.x = time * 0.25;
-				particleSystem.rotation.y = time * 0.5;
-
 				renderer.render( scene, camera );
-
+                stats.update();
 			}
 
 		</script>
