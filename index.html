@@ -10,7 +10,7 @@
 				font-family:Monospace;
 				font-size:13px;
 				
-				background-color: #050505;
+				background-color: #333;
 				margin: 0px;
 				overflow: hidden;
 				
@@ -37,6 +37,11 @@
 			    max-width: 200px;
 			    height: auto;
 			}
+			#img_name
+			{
+			    max-width: 200px;
+			    overflow: scroll;
+			}
 
 			a {
 
@@ -48,13 +53,14 @@
 
 		<div id="container"></div>
 		<div id="info">
-		    <div>Render image as an RGB point cloud:</div>
+		    <div>Render image as an RGB point cloud.</div>
 		    
 		    <a id="img_info" href="#" target="_blank">
 		    <div id="image_holder">
-                <span id="img_name">image</span>
-                <br>
+                <div id="img_name">image name</div>
                 <img id="image" src="" alt="Visualized image" crossOrigin="">
+                <br>
+                <input id="upload" type="file" onchange="uploadImageFile()">
     		</div>
     		</a>
     	</div>
@@ -67,42 +73,79 @@
 		<script src="js/purl.js"></script>
 
 		<script>
-        window.onload = function()
-        {
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
 			var container, stats;
 
 			var camera, scene, renderer, controls;
 
-			var mesh;
-			
+			var particleSystem;
 			var img;
 
-            initImage( decodeURI( purl().param('image') ) );
-            
-            function initImage( url )
+            init3D();
+            if( purl().param('image') !== undefined )
             {
+                loadImage( decodeURI( purl().param('image') ) );
+            }
+            else
+            {
+                loadImage( 'pigs.jpg' );
+            }
+            
+            function loadImage( url, name )
+            {
+                // The 'name' parameter is optional and defaults to 'url'.
+                if( name === undefined ) name = url;
+                
+                document.getElementById('img_info').href = url;
+                document.getElementById('img_name').innerHTML = name;
+                /*
+                if( url.length > 255 ) {
+                    // TODO: Just use overflow: scroll and put the whole thing there.
+                    document.getElementById('img_name').innerHTML = '...' + url.substr( -255, 255 );
+                } else {
+                    document.getElementById('img_name').innerHTML = url;
+                }
+                */
+                
                 // img = new Image();
                 img = document.getElementById('image');
                 // Set the crossOrigin property.
                 // From: http://stackoverflow.com/questions/19869150/html5-canvas-element-getimagedata-cross-origin-error
-                img.crossOrigin = '';
+                // UPDATE: We do this in the HTML itself, so we don't need this here.
+                // img.crossOrigin = '';
                 img.src = url;
                 // Wait until loaded.
                 // From: http://stackoverflow.com/questions/280049/javascript-callback-for-knowing-when-an-image-is-loaded/24201249#24201249
                 if( img.complete ) {
-                    init3D();
+                    createParticles();
                 } else {
-                    img.addEventListener( 'load', init3D );
+                    img.addEventListener( 'load', createParticles );
                     img.addEventListener( 'error', function() { alert('Error loading image: ' + url ); } );
                 }
-                
-                document.getElementById('img_info').href = url;
-                document.getElementById('img_name').innerHTML = url;
             }
+            function uploadImageFile()
+            {
+                // From: http://stackoverflow.com/questions/22087076/how-to-make-a-simple-image-upload-using-javascript-html
+                img = document.getElementById('image');
+                file = document.getElementById('upload').files[0];
+                
+                var reader  = new FileReader();
+                reader.onloadend = function() {
+                   loadImage( reader.result, file.name );
+                }
+                
+                if( file ) {
+                   reader.readAsDataURL( file ); //reads the data as a URL
+                } else {
+                   alert( 'Failed to load file.' );
+                }
+            }
+            
 			function createParticles()
             {
+                if( particleSystem !== undefined ) scene.remove( particleSystem );
+                
 				// Get the particles from the image's pixels.
 				// From: http://stackoverflow.com/questions/1041399/how-to-use-javascript-or-jquery-to-read-a-pixel-of-an-image
 				var canvas = document.createElement('canvas');
@@ -149,10 +192,13 @@
 
 				//
 
-				var material = new THREE.PointCloudMaterial( { size: 2/255., vertexColors: THREE.VertexColors } );
+				var material = new THREE.PointCloudMaterial( { size: 5/255., vertexColors: THREE.VertexColors } );
 
 				particleSystem = new THREE.PointCloud( geometry, material );
-				return particleSystem;
+				// return particleSystem;
+				scene.add( particleSystem );
+				
+				render();
 			}
 			
             function buildAxis( src, dst, colorHex, dashed ) {
@@ -245,13 +291,14 @@
                 
                 //
                 
+                // scene.add( createParticles() );
 				scene.add( buildAxes( 1. ) );
-                scene.add( createParticles() );
-				
+                
 				//
 
 				renderer = new THREE.WebGLRenderer( { antialias: false } );
 				// renderer.setClearColor( scene.fog.color );
+				renderer.setClearColor( new THREE.Color( '#333' ) );
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 
@@ -299,7 +346,6 @@
 				renderer.render( scene, camera );
                 stats.update();
 			}
-        }
 		</script>
 
 	</body>
