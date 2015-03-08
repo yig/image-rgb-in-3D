@@ -1,0 +1,9 @@
+# RGB is 3D
+
+Visualize the colors of an image as a 3D RGB point cloud.
+The image to load can be passed as an 'image' GET parameter or uploaded directly from your computer.
+
+# Credits
+
+[Oranges](http://www.ars.usda.gov/is/graphics/photos/k3644-12.html) and [pigs](http://www.ars.usda.gov/is/graphics/photos/mar05/k9455-9.htm)
+photos are public domain, from the US Department of Agriculture. (Pigs photo is by Scott Bauer.)
