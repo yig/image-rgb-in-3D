@@ -9,17 +9,33 @@
 				color: #cccccc;
 				font-family:Monospace;
 				font-size:13px;
-				text-align:center;
-
+				
 				background-color: #050505;
 				margin: 0px;
 				overflow: hidden;
+				
+				line-height: 20px;
+			}
+			
+			#container
+			{
+			    z-index: 10;
 			}
 
 			#info {
 				position: absolute;
 				top: 0px; width: 100%;
 				padding: 5px;
+			}
+			#image_holder
+			{
+			    float: left;
+			    text-align: center;
+			}
+			#image
+			{
+			    max-width: 200px;
+			    height: auto;
 			}
 
 			a {
@@ -31,7 +47,17 @@
 	<body>
 
 		<div id="container"></div>
-		<div id="info">Render image as an RGB point cloud: <a id="image" href="#" target="_blank">image</a></div>
+		<div id="info">
+		    <div>Render image as an RGB point cloud:</div>
+		    
+		    <a id="img_info" href="#" target="_blank">
+		    <div id="image_holder">
+                <span id="img_name">image</span>
+                <br>
+                <img id="image" src="" alt="Visualized image" crossOrigin="">
+    		</div>
+    		</a>
+    	</div>
 
 		<script src="js/three.min.js"></script>
 
@@ -41,7 +67,8 @@
 		<script src="js/purl.js"></script>
 
 		<script>
-
+        window.onload = function()
+        {
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
 			var container, stats;
@@ -56,7 +83,8 @@
             
             function initImage( url )
             {
-                img = new Image();
+                // img = new Image();
+                img = document.getElementById('image');
                 // Set the crossOrigin property.
                 // From: http://stackoverflow.com/questions/19869150/html5-canvas-element-getimagedata-cross-origin-error
                 img.crossOrigin = '';
@@ -70,9 +98,8 @@
                     img.addEventListener( 'error', function() { alert('Error loading image: ' + url ); } );
                 }
                 
-                var image_element = document.getElementById('image');
-                image_element.href = url;
-                image_element.innerHTML = url;
+                document.getElementById('img_info').href = url;
+                document.getElementById('img_name').innerHTML = url;
             }
 			function createParticles()
             {
@@ -272,7 +299,7 @@
 				renderer.render( scene, camera );
                 stats.update();
 			}
-
+        }
 		</script>
 
 	</body>
