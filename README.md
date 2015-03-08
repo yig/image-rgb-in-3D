@@ -1,9 +1,11 @@
 # RGB is 3D
 
 Visualize the colors of an image as a 3D RGB point cloud.
+
 The image to load can be passed as an 'image' GET parameter or uploaded directly from your computer.
-Requires WebGL.
+
 [Try it.](https://yig.github.io/image-rgb-in-3D)
+Requires WebGL.
 
 # Credits
 
