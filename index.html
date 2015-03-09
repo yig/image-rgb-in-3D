@@ -55,16 +55,15 @@
 		<div id="info">
 		    <div>Visualize the colors of an image as a 3D RGB point cloud.</div>
 		    
-		    <a id="img_info" href="#" target="_blank">
 		    <div id="image_holder">
-                <div id="img_name">image name</div>
-                <img id="image" src="" alt="Visualized image" crossOrigin="">
+		        <a id="img_info" href="#" target="_blank">
+                    <div id="img_name">image name</div>
+                    <img id="image" src="" alt="Visualized image" crossOrigin="">
+                </a>
+                <div id="debug"></div>
                 <br>
                 <input id="upload" type="file" onchange="uploadImageFile()">
     		</div>
-    		</a>
-    		
-    		<div id="debug"></div>
     	</div>
 
 		<script src="js/three.min.js"></script>
@@ -187,7 +186,7 @@
 
 				}
 				
-				document.getElementById('debug').innerHTML = particles + ' pixels, width: ' + img.naturalWidth + ', height: ' + img.naturalHeight;
+				document.getElementById('debug').innerHTML = 'width: ' + img.naturalWidth + ', height: ' + img.naturalHeight + '<br>total pixels: ' + particles; 
 
 				geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 				geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
