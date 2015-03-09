@@ -63,6 +63,8 @@
                 <input id="upload" type="file" onchange="uploadImageFile()">
     		</div>
     		</a>
+    		
+    		<div id="debug"></div>
     	</div>
 
 		<script src="js/three.min.js"></script>
@@ -149,14 +151,14 @@
 				// Get the particles from the image's pixels.
 				// From: http://stackoverflow.com/questions/1041399/how-to-use-javascript-or-jquery-to-read-a-pixel-of-an-image
 				var canvas = document.createElement('canvas');
-				canvas.width = img.width;
-				canvas.height = img.height;
+				canvas.width = img.naturalWidth;
+				canvas.height = img.naturalHeight;
 				var ctx = canvas.getContext("2d");
-				ctx.drawImage( img, 0, 0 );
+				ctx.drawImage( img, 0, 0, img.naturalWidth, img.naturalHeight );
 				// getImageData returns an RGBA byte array.
-				var pixels = ctx.getImageData( 0, 0, img.width, img.height ).data;
+				var pixels = ctx.getImageData( 0, 0, canvas.width, canvas.height ).data;
                 
-				var particles = img.width*img.height;
+				var particles = canvas.width*canvas.height;
 
 				var geometry = new THREE.BufferGeometry();
 
@@ -165,7 +167,7 @@
 
 				var color = new THREE.Color();
 
-				for ( var i = 0; i < positions.length; i += 1 ) {
+				for ( var i = 0; i < particles; i += 1 ) {
 
 					// colors
 
@@ -184,6 +186,8 @@
 					colors[ 3*i + 2 ] = color.b;
 
 				}
+				
+				document.getElementById('debug').innerHTML = particles + ' pixels, width: ' + img.naturalWidth + ', height: ' + img.naturalHeight;
 
 				geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 				geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
