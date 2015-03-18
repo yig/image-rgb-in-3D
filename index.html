@@ -57,11 +57,11 @@
 		    <div id="image_holder">
 		        <a id="img_info" href="#" target="_blank">
                     <div id="img_name">image name</div>
-                    <img id="image" src="" alt="Visualized image" crossOrigin="">
+                    <img id="image" src="" alt="Visualized image" crossorigin="use-credentials">
                 </a>
                 <div id="debug"></div>
                 <br>
-                <input id="upload" type="file" onchange="uploadImageFile()">
+                <input id="upload" type="file">
     		</div>
     	</div>
 
@@ -108,21 +108,26 @@
                 }
                 */
                 
-                // img = new Image();
-                img = document.getElementById('image');
+                // document.getElementById('image').src = url;
+                // return;
+                
+                img = new Image();
+                // img = document.getElementById('image');
                 // Set the crossOrigin property.
                 // From: http://stackoverflow.com/questions/19869150/html5-canvas-element-getimagedata-cross-origin-error
+                // From: https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes
                 // UPDATE: We do this in the HTML itself, so we don't need this here.
                 // img.crossOrigin = '';
-                img.src = url;
+                // img.crossOrigin = 'anonymous';
+                // img.crossOrigin = 'use-credentials';
+                
                 // Wait until loaded.
                 // From: http://stackoverflow.com/questions/280049/javascript-callback-for-knowing-when-an-image-is-loaded/24201249#24201249
-                if( img.complete ) {
-                    createParticles();
-                } else {
-                    img.addEventListener( 'load', createParticles );
-                    img.addEventListener( 'error', function() { alert('Error loading image: ' + url ); } );
-                }
+                img.onload = createParticles;
+                img.onerror = function() { alert('Error loading image: ' + url ); };
+                
+                img.src = url;
+                document.getElementById('image').src = img.src;
             }
             function uploadImageFile()
             {
@@ -131,7 +136,7 @@
                 file = document.getElementById('upload').files[0];
                 
                 var reader  = new FileReader();
-                reader.onloadend = function() {
+                reader.onload = function() {
                    loadImage( reader.result, file.name );
                 }
                 
@@ -141,6 +146,7 @@
                    alert( 'Failed to load file.' );
                 }
             }
+            document.getElementById('upload').onchange = uploadImageFile;
             
 			function createParticles()
             {
