@@ -57,7 +57,7 @@
 		    <div id="image_holder">
 		        <a id="img_info" href="#" target="_blank">
                     <div id="img_name">image name</div>
-                    <img id="image" src="" alt="Visualized image" crossorigin="use-credentials">
+                    <img id="image" src="" alt="Visualized image">
                 </a>
                 <div id="debug"></div>
                 <br>
@@ -108,26 +108,23 @@
                 }
                 */
                 
-                // document.getElementById('image').src = url;
-                // return;
-                
-                img = new Image();
-                // img = document.getElementById('image');
+                img = document.getElementById('image');
                 // Set the crossOrigin property.
                 // From: http://stackoverflow.com/questions/19869150/html5-canvas-element-getimagedata-cross-origin-error
                 // From: https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes
                 // UPDATE: We do this in the HTML itself, so we don't need this here.
+                // UPDATE 2: Setting the cross-origin policy causes this to break on Safari.
                 // img.crossOrigin = '';
                 // img.crossOrigin = 'anonymous';
                 // img.crossOrigin = 'use-credentials';
                 
                 // Wait until loaded.
                 // From: http://stackoverflow.com/questions/280049/javascript-callback-for-knowing-when-an-image-is-loaded/24201249#24201249
+                // UPDATE: img.complete returns true for Firefox before the image is actually complete.
                 img.onload = createParticles;
-                img.onerror = function() { alert('Error loading image: ' + url ); };
+                img.onerror = function() { alert( 'Error loading image.' ); console.error( 'Error loading image:' ); console.error( url ) };
                 
                 img.src = url;
-                document.getElementById('image').src = img.src;
             }
             function uploadImageFile()
             {
