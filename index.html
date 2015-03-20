@@ -145,6 +145,40 @@
             }
             document.getElementById('upload').onchange = uploadImageFile;
             
+            function uniquePixels( data )
+            {
+                /*
+                Given an array of RGBA unsigned char values, every four of which represent
+                the next pixel, returns an array of unique values.
+                */
+                
+                var unique = {};
+                
+                var num_pixels = data.length/4;
+                for( var i = 0; i < num_pixels; ++i )
+                {
+                    unique[ [
+                        data[ 4*i + 0 ],
+                        data[ 4*i + 1 ],
+                        data[ 4*i + 2 ],
+                        data[ 4*i + 3 ]
+                        ] ] = true;
+                }
+                
+                var result = [];
+                
+                for( var k in unique )
+                {
+                    var color = JSON.parse('[' + k + ']');
+                    
+                    result.push.apply( result, color );
+                }
+                
+                console.log( result.length/4 + " / " + data.length/4 + " = " + (100*result.length/data.length) + "% unique pixels" );
+                
+                return result;
+            }
+            
 			function createParticles()
             {
                 if( particleSystem !== undefined ) scene.remove( particleSystem );
@@ -157,9 +191,9 @@
 				var ctx = canvas.getContext("2d");
 				ctx.drawImage( img, 0, 0, img.naturalWidth, img.naturalHeight );
 				// getImageData returns an RGBA byte array.
-				var pixels = ctx.getImageData( 0, 0, canvas.width, canvas.height ).data;
+				var pixels = uniquePixels( ctx.getImageData( 0, 0, canvas.width, canvas.height ).data );
                 
-				var particles = canvas.width*canvas.height;
+				var particles = pixels.length / 4;
 
 				var geometry = new THREE.BufferGeometry();
 
@@ -188,7 +222,13 @@
 
 				}
 				
-				document.getElementById('debug').innerHTML = 'width: ' + img.naturalWidth + ', height: ' + img.naturalHeight + '<br>total pixels: ' + particles; 
+				document.getElementById('debug').innerHTML =
+				    'width: ' + img.naturalWidth + ', height: ' + img.naturalHeight
+				    +
+				    '<br>total pixels: ' + canvas.width*canvas.height
+				    +
+				    '<br>unique pixels: ' + particles
+				    ;
 
 				geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 				geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
