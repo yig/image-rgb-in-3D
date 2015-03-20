@@ -129,9 +129,12 @@
             function uploadImageFile()
             {
                 // From: http://stackoverflow.com/questions/22087076/how-to-make-a-simple-image-upload-using-javascript-html
-                img = document.getElementById('image');
                 file = document.getElementById('upload').files[0];
                 
+                loadFile( file );
+            }
+            function loadFile( file )
+            {
                 var reader  = new FileReader();
                 reader.onload = function() {
                    loadImage( reader.result, file.name );
@@ -144,6 +147,10 @@
                 }
             }
             document.getElementById('upload').onchange = uploadImageFile;
+            // Drag-and-drop anywhere onto the window.
+            // From: http://stackoverflow.com/questions/11124630/how-to-do-document-ondrop-in-firefox
+            document.ondragover = function( event ) { event.preventDefault(); }
+            document.ondrop = function( event ) { event.preventDefault(); loadFile( event.dataTransfer.files[0] ); }
             
             function uniquePixels( data )
             {
