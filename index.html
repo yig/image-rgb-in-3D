@@ -272,6 +272,8 @@
                     mat = new THREE.LineBasicMaterial({ linewidth: 2, color: 0xffffff, vertexColors: THREE.VertexColors });
                 }
                 
+                // Lines blend colors.
+                // From: http://threejs.org/examples/webgl_lines_colors.html
                 geom.colors = [ color0.clone(), color1.clone() ];
                 
                 geom.vertices.push( position0.clone() );
