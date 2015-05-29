@@ -41,6 +41,12 @@
 			{
 			    max-width: 200px;
 			}
+			
+			#inertia_holder
+			{
+			    clear: both;
+			    padding-top: 5px;
+			}
 
 			a {
 
@@ -63,6 +69,8 @@
                 <br>
                 <input id="upload" type="file">
     		</div>
+    		
+    		<div id="inertia_holder"><label>Rotation has intertia:<input type="checkbox" id="intertia" /></label></div>
     	</div>
 
 		<script src="js/three.min.js"></script>
@@ -244,7 +252,7 @@
 
 				//
 
-				var material = new THREE.PointCloudMaterial( { size: 5/255., vertexColors: THREE.VertexColors } );
+				var material = new THREE.PointCloudMaterial( { size: 4/255., vertexColors: THREE.VertexColors } );
 
 				particleSystem = new THREE.PointCloud( geometry, material );
 				// return particleSystem;
@@ -253,19 +261,21 @@
 				render();
 			}
 			
-            function buildAxis( src, dst, colorHex, dashed ) {
+            function createAxisLine( position0, position1, color0, color1, dashed ) {
                 // From: http://soledadpenades.com/articles/three-js-tutorials/drawing-the-coordinate-axes/
                 var geom = new THREE.Geometry();
                 var mat;
                 
                 if( dashed ) {
-                    mat = new THREE.LineDashedMaterial({ linewidth: 1, color: colorHex, dashSize: 10/255., gapSize: 5/255. });
+                    mat = new THREE.LineDashedMaterial({ linewidth: 1, color: 0xffffff, vertexColors: THREE.VertexColors, dashSize: 10/255., gapSize: 5/255. });
                 } else {
-                    mat = new THREE.LineBasicMaterial({ linewidth: 2, color: colorHex });
+                    mat = new THREE.LineBasicMaterial({ linewidth: 2, color: 0xffffff, vertexColors: THREE.VertexColors });
                 }
                 
-                geom.vertices.push( src.clone() );
-                geom.vertices.push( dst.clone() );
+                geom.colors = [ color0.clone(), color1.clone() ];
+                
+                geom.vertices.push( position0.clone() );
+                geom.vertices.push( position1.clone() );
                 geom.computeLineDistances(); // This one is SUPER important, otherwise dashed lines will appear as simple plain lines
                 
                 var axis = new THREE.Line( geom, mat, THREE.LinePieces );
@@ -276,33 +286,33 @@
 			{
 			    // From: http://soledadpenades.com/articles/three-js-tutorials/drawing-the-coordinate-axes/
                 var axes = new THREE.Object3D();
-                axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( length, 0, 0 ), 0xFF0000, false ) ); // +X
+                axes.add( createAxisLine( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( length, 0, 0 ), new THREE.Color( 0x000000 ), new THREE.Color( 0xFF0000 ), false ) ); // +X
                 // axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( -length, 0, 0 ), 0xFF0000, true) ); // -X
-                axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, length, 0 ), 0x00FF00, false ) ); // +Y
+                axes.add( createAxisLine( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, length, 0 ), new THREE.Color( 0x000000 ), new THREE.Color( 0x00FF00 ), false ) ); // +Y
                 // axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, -length, 0 ), 0x00FF00, true ) ); // -Y
-                axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, length ), 0x0000FF, false ) ); // +Z
+                axes.add( createAxisLine( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, length ), new THREE.Color( 0x000000 ), new THREE.Color( 0x0000FF ), false ) ); // +Z
                 // axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, -length ), 0x0000FF, true ) ); // -Z
                 
                 // XY
-                axes.add( buildAxis( new THREE.Vector3( length, 0, 0 ), new THREE.Vector3( length, length, 0 ), 0xFFFF00, true) );
-                axes.add( buildAxis( new THREE.Vector3( 0, length, 0 ), new THREE.Vector3( length, length, 0 ), 0xFFFF00, true) );
+                axes.add( createAxisLine( new THREE.Vector3( length, 0, 0 ), new THREE.Vector3( length, length, 0 ), new THREE.Color( 0xFF0000 ), new THREE.Color( 0xFFFF00 ), false ) );
+                axes.add( createAxisLine( new THREE.Vector3( 0, length, 0 ), new THREE.Vector3( length, length, 0 ), new THREE.Color( 0x00FF00 ), new THREE.Color( 0xFFFF00 ), false ) );
                 
                 // YZ
-                axes.add( buildAxis( new THREE.Vector3( 0, length, 0 ), new THREE.Vector3( 0, length, length ), 0x00FFFF, true) );
-                axes.add( buildAxis( new THREE.Vector3( 0, 0, length ), new THREE.Vector3( 0, length, length ), 0x00FFFF, true) );
+                axes.add( createAxisLine( new THREE.Vector3( 0, length, 0 ), new THREE.Vector3( 0, length, length ), new THREE.Color( 0x00FF00 ), new THREE.Color( 0x00FFFF ), false ) );
+                axes.add( createAxisLine( new THREE.Vector3( 0, 0, length ), new THREE.Vector3( 0, length, length ), new THREE.Color( 0x0000FF ), new THREE.Color( 0x00FFFF ), false ) );
                 
                 // XZ
-                axes.add( buildAxis( new THREE.Vector3( length, 0, 0 ), new THREE.Vector3( length, 0, length ), 0xFF00FF, true) );
-                axes.add( buildAxis( new THREE.Vector3( 0, 0, length ), new THREE.Vector3( length, 0, length ), 0xFF00FF, true) );
+                axes.add( createAxisLine( new THREE.Vector3( length, 0, 0 ), new THREE.Vector3( length, 0, length ), new THREE.Color( 0xFF0000 ), new THREE.Color( 0xFF00FF ), false ) );
+                axes.add( createAxisLine( new THREE.Vector3( 0, 0, length ), new THREE.Vector3( length, 0, length ), new THREE.Color( 0x0000FF ), new THREE.Color( 0xFF00FF ), false ) );
                 
                 // XY from 1,1,1
-                axes.add( buildAxis( new THREE.Vector3( length, length, length ), new THREE.Vector3( length, length, 0 ), 0xFFFFFF, true) );
+                axes.add( createAxisLine( new THREE.Vector3( length, length, length ), new THREE.Vector3( length, length, 0 ), new THREE.Color( 0xFFFFFF ), new THREE.Color( 0xFFFF00 ), false ) );
                 
                 // YZ from 1,1,1
-                axes.add( buildAxis( new THREE.Vector3( length, length, length ), new THREE.Vector3( 0, length, length ), 0xFFFFFF, true) );
+                axes.add( createAxisLine( new THREE.Vector3( length, length, length ), new THREE.Vector3( 0, length, length ), new THREE.Color( 0xFFFFFF ), new THREE.Color( 0x00FFFF ), false ) );
                 
                 // XZ from 1,1,1
-                axes.add( buildAxis( new THREE.Vector3( length, length, length ), new THREE.Vector3( length, 0, length ), 0xFFFFFF, true) );
+                axes.add( createAxisLine( new THREE.Vector3( length, length, length ), new THREE.Vector3( length, 0, length ), new THREE.Color( 0xFFFFFF ), new THREE.Color( 0xFF00FF ), false ) );
                 
                 return axes;
 			}
@@ -315,15 +325,21 @@
 				controls.zoomSpeed = 1.2;
 				controls.panSpeed = 0.8;
 
-				controls.noZoom = false;
-				controls.noPan = false;
+				controls.noZoom = true;
+				controls.noPan = true;
 
 				controls.staticMoving = true;
-				controls.dynamicDampingFactor = 0.3;
+				// dynamicDampingFactor only has an effect when staticMoving is false.
+				// Setting it to 0 allows constant-speed rotation in a loop.
+				controls.dynamicDampingFactor = 0.0;
 
 				// controls.keys = [ 65, 83, 68 ];
 
 				controls.addEventListener( 'change', render );
+
+				// Set up the inertial rotation checkbox.
+				document.getElementById( 'intertia' ).addEventListener( 'change', function() { controls.staticMoving = !document.getElementById('intertia').checked; } );
+				document.getElementById('intertia').checked = !controls.staticMoving;
 			}
 			
 			function init3D() {
@@ -392,6 +408,8 @@
 			function animate() {
 				requestAnimationFrame( animate );
                 controls.update();
+                // If we have dynamic movement, we need to call render every frame.
+                if( !controls.staticMoving ) render();
 			}
 
 			function render() {
