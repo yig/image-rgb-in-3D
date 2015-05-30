@@ -42,7 +42,7 @@
 			    max-width: 200px;
 			}
 			
-			#inertia_holder
+			.widget
 			{
 			    clear: both;
 			    padding-top: 5px;
@@ -70,7 +70,9 @@
                 <input id="upload" type="file">
     		</div>
     		
-    		<div id="inertia_holder"><label>Rotation has intertia:<input type="checkbox" id="intertia" /></label></div>
+    		<div class="widget"><label>Rotation has intertia:<input type="checkbox" id="intertia" /></label></div>
+    		<!-- <div class="widget"><button id="look_from_white">Look from white</button></div> -->
+    		<div><a href="#" id="look_from_white">Look from white</a></div>
     	</div>
 
 		<script src="js/three.min.js"></script>
@@ -329,19 +331,30 @@
 
 				controls.noZoom = true;
 				controls.noPan = true;
+				// Keep the horizon level? No.
+				camera.noRoll = false;
 
 				controls.staticMoving = true;
 				// dynamicDampingFactor only has an effect when staticMoving is false.
 				// Setting it to 0 allows constant-speed rotation in a loop.
 				controls.dynamicDampingFactor = 0.0;
 
-				// controls.keys = [ 65, 83, 68 ];
-
 				controls.addEventListener( 'change', render );
 
 				// Set up the inertial rotation checkbox.
 				document.getElementById( 'intertia' ).addEventListener( 'change', function() { controls.staticMoving = !document.getElementById('intertia').checked; } );
-				document.getElementById('intertia').checked = !controls.staticMoving;
+				document.getElementById( 'intertia' ).checked = !controls.staticMoving;
+				
+				document.getElementById( 'look_from_white' ).addEventListener( 'click', function() {
+				    // First reset the controls
+				    controls.reset();
+				    controls.target.set( .5, .5, .5 );
+				    
+				    var targetToCameraLength = camera.position.clone().sub( controls.target ).length();
+				    
+				    camera.position.set( 1, 1, 1 );
+				    camera.position.sub( controls.target ).setLength( targetToCameraLength ).add( controls.target );
+				    } );
 			}
 			
 			function init3D() {
@@ -366,7 +379,7 @@
                 
 				//
 
-				renderer = new THREE.WebGLRenderer( { antialias: false } );
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				// renderer.setClearColor( scene.fog.color );
 				renderer.setClearColor( new THREE.Color( '#333' ) );
 				renderer.setPixelRatio( window.devicePixelRatio );
