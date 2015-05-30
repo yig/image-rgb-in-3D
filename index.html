@@ -73,6 +73,7 @@
     		<div class="widget"><label>Rotation has intertia:<input type="checkbox" id="intertia" /></label></div>
     		<!-- <div class="widget"><button id="look_from_white">Look from white</button></div> -->
     		<div><a href="#" id="look_from_white">Look from white</a></div>
+    		<div><a href="#" onclick="saveScreenshot()">Save PNG</a></div>
     	</div>
 
 		<script src="js/three.min.js"></script>
@@ -81,6 +82,11 @@
 		<script src="js/Detector.js"></script>
 		<script src="js/libs/stats.min.js"></script>
 		<script src="js/purl.js"></script>
+		
+		<!--
+		<script src="js/Blob.js"></script>
+		<script src="js/FileSaver.js"></script>
+		-->
 
 		<script>
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
@@ -91,6 +97,10 @@
 
 			var particleSystem;
 			var img;
+			
+			var kScreenshots = purl().param('screenshots') !== undefined;
+			console.log( "kScreenshots: " + kScreenshots );
+			console.log( "purl 'screenshots': " + purl().param('screenshots') );
 
             init3D();
             if( purl().param('image') !== undefined )
@@ -161,6 +171,37 @@
             // From: http://stackoverflow.com/questions/11124630/how-to-do-document-ondrop-in-firefox
             document.ondragover = function( event ) { event.preventDefault(); }
             document.ondrop = function( event ) { event.preventDefault(); loadFile( event.dataTransfer.files[0] ); }
+            
+            function saveScreenshot()
+            {
+                if( !kScreenshots )
+                {
+                    console.log( "This probably won't work. Refresh the page with ?screenshots" );
+                }
+                
+                var kMIMEType = "image/png";
+                var dataURL = renderer.domElement.toDataURL( kMIMEType );
+                
+                // Open in a new window.
+                window.open( dataURL );
+                
+                /*
+                // Save to disk.
+                // From: http://stackoverflow.com/questions/17332071/trying-to-save-canvas-png-data-url-to-disk-with-html5-filesystem-but-when-i-ret
+                var data = atob( dataURL.replace(/^.*?base64,/, '') );
+                var asArray = new Uint8Array( data.length );
+                for( var i = 0, len = data.length; i < len; ++i ) {
+                    asArray[i] = data.charCodeAt(i);    
+                }
+                
+                // This uses Blob and FileSaver.
+                // For old browsers, use:
+                // https://github.com/eligrey/Blob.js
+                // https://github.com/eligrey/FileSaver.js/
+                var blob = new Blob( [ asArray.buffer ], { type: kMIMEType } );
+                saveAs( blob, "canvas.png" );
+                */
+            }
             
             function uniquePixels( data )
             {
@@ -379,10 +420,14 @@
                 
 				//
 
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer = new THREE.WebGLRenderer( {
+				    antialias: true,
+				    // This is necessary for saving screenshots with .toDataURL("image/png")
+				    preserveDrawingBuffer: kScreenshots // true
+				    } );
 				// renderer.setClearColor( scene.fog.color );
 				renderer.setClearColor( new THREE.Color( '#333' ) );
-				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setPixelRatio( kScreenshots ? 2. : window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 
 				container.appendChild( renderer.domElement );
