@@ -427,6 +427,7 @@
 				    } );
 				// renderer.setClearColor( scene.fog.color );
 				renderer.setClearColor( new THREE.Color( '#333' ) );
+				// I tried setting this to 3., and the canvas appears stretched.
 				renderer.setPixelRatio( kScreenshots ? 2. : window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 
