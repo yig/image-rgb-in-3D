@@ -166,7 +166,7 @@
                 
                 // If it ends with JSON, treat it as a JSON file
                 // containing the faces and vertices of the overlay mesh.
-                if( /.json/.test( file.name ) ) {
+                if( /.js(on)?$/.test( file.name ) ) {
                     reader.onload = function() { loadOverlayMesh( JSON.parse( reader.result ) ); };
                     // read the data as a binary string.
                     reader.readAsBinaryString( file );
