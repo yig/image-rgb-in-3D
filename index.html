@@ -98,6 +98,8 @@
 			var particleSystem;
 			var img;
 			
+			var overlayMeshVertices, overlayMeshEdges;
+			
 			var kScreenshots = purl().param('screenshots') !== undefined;
 			console.log( "kScreenshots: " + kScreenshots );
 			console.log( "purl 'screenshots': " + purl().param('screenshots') );
@@ -155,15 +157,24 @@
             }
             function loadFile( file )
             {
-                var reader  = new FileReader();
-                reader.onload = function() {
-                   loadImage( reader.result, file.name );
+                if( !file ) {
+                    alert( 'Failed to load file.' );
+                    return;
                 }
                 
-                if( file ) {
-                   reader.readAsDataURL( file ); //reads the data as a URL
-                } else {
-                   alert( 'Failed to load file.' );
+                var reader = new FileReader();
+                
+                // If it ends with JSON, treat it as a JSON file
+                // containing the faces and vertices of the overlay mesh.
+                if( /.json/.test( file.name ) ) {
+                    reader.onload = function() { loadOverlayMesh( JSON.parse( reader.result ) ); };
+                    // read the data as a binary string.
+                    reader.readAsBinaryString( file );
+                }
+                else {
+                    reader.onload = function() { loadImage( reader.result, file.name ); };
+                    // reads the data as a data URL
+                    reader.readAsDataURL( file );
                 }
             }
             document.getElementById('upload').onchange = uploadImageFile;
@@ -240,6 +251,8 @@
 			function createParticles()
             {
                 if( particleSystem !== undefined ) scene.remove( particleSystem );
+                // Also clear the overlay mesh if there is one.
+                clearOverlayMesh();
                 
 				// Get the particles from the image's pixels.
 				// From: http://stackoverflow.com/questions/1041399/how-to-use-javascript-or-jquery-to-read-a-pixel-of-an-image
@@ -362,6 +375,79 @@
                 return axes;
 			}
 			
+			function clearOverlayMesh()
+			{
+			    if( overlayMeshEdges !== undefined ) scene.remove( overlayMeshEdges );
+			    if( overlayMeshVertices !== undefined ) scene.remove( overlayMeshVertices );
+			}
+			function loadOverlayMesh( hull )
+			{
+			    console.log( "loadOverlayMesh( ... ):" );
+			    console.log( hull );
+			    
+			    clearOverlayMesh();
+			    
+                /// Create the overlayMeshEdges
+                if( hull.faces.length > 0 ) {
+                    var geometry = new THREE.Geometry();
+                    // Copy vertices
+                    for( var i = 0; i < hull.vs.length; ++i ) {
+                        var vert = hull.vs[i];
+                        geometry.vertices.push( new THREE.Vector3( vert[0]/255., vert[1]/255., vert[2]/255. ) );
+                    }
+                    // Copy faces
+                    for( var i = 0; i < hull.faces.length; ++i ) {
+                        var face = hull.faces[i];
+                        geometry.faces.push( new THREE.Face3( face[0], face[1], face[2] ) );
+                    }
+                    
+                    geometry.verticesNeedUpdate = true;
+                    geometry.elementsNeedUpdate = true;
+                    
+                    var edge_material = new THREE.MeshBasicMaterial({
+                        color: 0x888888,
+                        wireframe: true,
+                        wireframeLinewidth: 2
+                        });
+                    
+                    overlayMeshEdges = new THREE.Mesh( geometry, edge_material );
+                    scene.add( overlayMeshEdges );
+				}
+				
+				
+				/// Create the overlayMeshVertices
+				if( hull.vs.length > 0 ) {
+                    overlayMeshVertices = new THREE.Object3D();
+                    // Create a circle for each vertex
+                    for( var i = 0; i < hull.vs.length; ++i ) {
+                        var vert = hull.vs[i];
+                        var circleMaterial = new THREE.MeshBasicMaterial({
+                            color: new THREE.Color( vert[0]/255., vert[1]/255., vert[2]/255. )
+                            });
+                        
+                        var radius = 5./255;
+                        var segments = 32;
+                        var circleGeometry = new THREE.SphereGeometry( radius, segments, segments );
+                        var circle = new THREE.Mesh( circleGeometry, circleMaterial );
+                        circle.position.set( vert[0]/255., vert[1]/255., vert[2]/255. );
+                        
+                        overlayMeshVertices.add( circle );
+                        
+                        
+                        // HACK: A white rim.
+                        circleGeometry = new THREE.CircleGeometry( radius*1.2, segments );
+                        circle = new THREE.Mesh( circleGeometry, new THREE.MeshBasicMaterial({ color: 0xFFFFFF }) );
+                        circle.position.set( vert[0]/255., vert[1]/255., vert[2]/255. );
+                        
+                        overlayMeshVertices.add( circle );
+                    }
+                    scene.add( overlayMeshVertices );
+				}
+				
+				
+				render();
+			}
+			
 			function initControls( camera ) {
 			    controls = new THREE.TrackballControls( camera );
 			    controls.target.set( .5, .5, .5 );
@@ -474,6 +560,14 @@
 			}
 
 			function render() {
+			    // HACK: Update overlay mesh vertices' white rims.
+			    if( overlayMeshVertices !== undefined ) {
+			        for( var i = 1; i < overlayMeshVertices.children.length; i += 2 )
+			        {
+			            overlayMeshVertices.children[i].lookAt( camera.position );
+			        }
+			    }
+			    
 				renderer.render( scene, camera );
                 stats.update();
 			}
