@@ -388,7 +388,7 @@
 			    clearOverlayMesh();
 			    
                 /// Create the overlayMeshEdges
-                if( hull.faces.length > 0 ) {
+                if( hull.faces !== undefined && hull.faces.length > 0 ) {
                     var geometry = new THREE.Geometry();
                     // Copy vertices
                     for( var i = 0; i < hull.vs.length; ++i ) {
