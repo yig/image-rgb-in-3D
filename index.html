@@ -390,6 +390,9 @@
                 /// Create the overlayMeshEdges
                 if( hull.faces !== undefined && hull.faces.length > 0 ) {
                     var geometry = new THREE.Geometry();
+                    
+                    /// "Smart" faces which are indices into vertices.
+                    /*
                     // Copy vertices
                     for( var i = 0; i < hull.vs.length; ++i ) {
                         var vert = hull.vs[i];
@@ -400,14 +403,30 @@
                         var face = hull.faces[i];
                         geometry.faces.push( new THREE.Face3( face[0], face[1], face[2] ) );
                     }
+                    */
+                    
+                    
+                    /// "Dumb" faces which are each a triplet of positions.
+                    for( var i = 0; i < hull.faces.length; ++i ) {
+                        var face = hull.faces[i];
+                        
+                        var n = geometry.vertices.length;
+                        geometry.faces.push( new THREE.Face3( n+0, n+1, n+2 ) );
+                        
+                        for( var fi = 0; fi < 3; ++fi )
+                        {
+                            var vert = face[fi];
+                            geometry.vertices.push( new THREE.Vector3( vert[0]/255., vert[1]/255., vert[2]/255. ) );
+                        }
+                    }
                     
                     geometry.verticesNeedUpdate = true;
                     geometry.elementsNeedUpdate = true;
                     
                     var edge_material = new THREE.MeshBasicMaterial({
-                        color: 0x888888,
+                        color: 0xFFFFFF,
                         wireframe: true,
-                        wireframeLinewidth: 2
+                        wireframeLinewidth: 1
                         });
                     
                     overlayMeshEdges = new THREE.Mesh( geometry, edge_material );
@@ -512,7 +531,7 @@
 				    preserveDrawingBuffer: kScreenshots // true
 				    } );
 				// renderer.setClearColor( scene.fog.color );
-				renderer.setClearColor( new THREE.Color( '#333' ) );
+				renderer.setClearColor( new THREE.Color( '#888888' ) );
 				// I tried setting this to 3., and the canvas appears stretched.
 				renderer.setPixelRatio( kScreenshots ? 2. : window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
