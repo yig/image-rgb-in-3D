@@ -73,7 +73,7 @@
     		<div class="widget"><label>Rotation has intertia:<input type="checkbox" id="intertia" /></label></div>
     		<!-- <div class="widget"><button id="look_from_white">Look from white</button></div> -->
     		<div><a href="#" id="look_from_white">Look from white</a></div>
-    		<div><a href="#" onclick="saveScreenshot()">Save PNG</a></div>
+    		<div id="saveScreenshot"><a href="#" onclick="saveScreenshot()">Save PNG</a></div>
     	</div>
 
 		<script src="js/three.min.js"></script>
@@ -100,10 +100,19 @@
 			
 			var overlayMeshVertices, overlayMeshEdges;
 			
+			// True by default
+			// var kScreenshots = true;
+			// unless a `screenshots` parameter is passed with the value 'no'.
+			// if( purl().param('screenshots') === 'no' ) kScreenshots = false;
 			var kScreenshots = purl().param('screenshots') !== undefined;
-			console.log( "kScreenshots: " + kScreenshots );
+			// Hide the Save PNG button if screenshots is not present.
+			if( !kScreenshots ) {
+	    		var saveScreenshotButton = document.getElementById( 'saveScreenshot' )
+    			saveScreenshotButton.parentNode.removeChild( saveScreenshotButton );
+    		}
 			console.log( "purl 'screenshots': " + purl().param('screenshots') );
-
+            console.log( "kScreenshots: " + kScreenshots );
+			
             init3D();
             if( purl().param('image') !== undefined )
             {
