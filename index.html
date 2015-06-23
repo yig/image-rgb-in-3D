@@ -223,8 +223,15 @@
                 */
             }
             
-            function uniquePixels( data )
+            function uniquePixels( data, skip_transparent )
             {
+                if( skip_transparent === undefined ) skip_transparent = true;
+                /*
+                console.log( "skip_transparent:", skip_transparent );
+                var skip_count = 0;
+                var skipped = {};
+                */
+                
                 /*
                 Given an array of RGBA unsigned char values, every four of which represent
                 the next pixel, returns an array of unique values.
@@ -235,6 +242,21 @@
                 var num_pixels = data.length/4;
                 for( var i = 0; i < num_pixels; ++i )
                 {
+                    // Skip transparent pixels
+                    if( skip_transparent && data[ 4*i + 3 ] == 0 )
+                    {
+                        /*
+                        skip_count += 1;
+                        skipped[ [
+                            data[ 4*i + 0 ],
+                            data[ 4*i + 1 ],
+                            data[ 4*i + 2 ],
+                            data[ 4*i + 3 ]
+                            ] ] = true;
+                        */
+                        continue;
+                    }
+                    
                     unique[ [
                         data[ 4*i + 0 ],
                         data[ 4*i + 1 ],
@@ -242,6 +264,13 @@
                         data[ 4*i + 3 ]
                         ] ] = true;
                 }
+                
+                /*
+                /// Chrome reads the RGB channels of 100% transparent pixels as 0,0,0.
+                /// I didn't test other browsers.
+                console.log( "Number of skipped transparent pixels:", skip_count );
+                console.log( skipped );
+                */
                 
                 var result = [];
                 
