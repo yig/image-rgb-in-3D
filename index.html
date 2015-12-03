@@ -32,7 +32,7 @@
 			    float: left;
 			    text-align: center;
 			}
-			#image
+			.image
 			{
 			    max-width: 200px;
 			    height: auto;
@@ -63,8 +63,10 @@
 		    <div id="image_holder">
 		        <a id="img_info" href="#" target="_blank">
                     <div id="img_name">image name</div>
-                    <img id="image" src="" alt="Visualized image">
+                    <img id="image" class="image" src="" alt="Visualized image">
                 </a>
+                <canvas id="image_recolor" class="image" alt="Recolored image" style="display: none;"></canvas>
+                
                 <div id="debug"></div>
                 <br>
                 <input id="upload" type="file">
@@ -96,15 +98,18 @@
 			var camera, scene, renderer, controls;
 
 			var particleSystem;
-			var img;
+			var img = null;
 			
-			var overlayMeshVertices, overlayMeshEdges;
+			var overlayMeshVertices = null, overlayMeshEdges = null, overlayMeshVerticesRims = null;
+			
+			var weights = null;
+			var recolor_data = null;
 			
 			// True by default
-			// var kScreenshots = true;
+			var kScreenshots = true;
 			// unless a `screenshots` parameter is passed with the value 'no'.
 			// if( purl().param('screenshots') === 'no' ) kScreenshots = false;
-			var kScreenshots = purl().param('screenshots') !== undefined;
+			// var kScreenshots = purl().param('screenshots') !== undefined;
 			// Hide the Save PNG button if screenshots is not present.
 			if( !kScreenshots ) {
 	    		var saveScreenshotButton = document.getElementById( 'saveScreenshot' )
@@ -176,7 +181,19 @@
                 // If it ends with JSON, treat it as a JSON file
                 // containing the faces and vertices of the overlay mesh.
                 if( /.js(on)?$/.test( file.name ) ) {
-                    reader.onload = function() { loadOverlayMesh( JSON.parse( reader.result ) ); };
+                    reader.onload = function() {
+                        var parsed = JSON.parse( reader.result );
+                        // Depending on which keys the JSON contains, we pass
+                        // it to different functions.
+                        // In fact, we can pass it to multiple functions if it
+                        // satisfies multiple loaders' criteria.
+                        if( loadableOverlayMesh( parsed ) ) {
+                            loadOverlayMesh( parsed );
+                        }
+                        if( 'weights' in parsed ) {
+                            loadWeights( parsed );
+                        }
+                        };
                     // read the data as a binary string.
                     reader.readAsBinaryString( file );
                 }
@@ -354,6 +371,71 @@
 				
 				render();
 			}
+			function drawRecolorImage()
+			{
+			    if( weights == null ) {
+			        console.error( "drawRecolorImage() but weights == null." );
+			        return;
+			    }
+			    
+			    // Get the colors.
+			    var colors = [];
+			    colors.length = overlayMeshVertices.children.length;
+			    for( var i = 0; i < overlayMeshVertices.children.length; ++i )
+                {
+                    var pos = overlayMeshVertices.children[i].position;
+                    colors[i] = [ pos.x, pos.y, pos.z ];
+                }
+			    
+			    // Create a context2d if we don't have one yet.
+			    if( !( 'ctx' in recolor_data ) ) {
+			        var recolor = document.getElementById('image_recolor');
+    			    recolor_data.ctx = recolor.getContext("2d");
+    			    // Initialize the canvas by drawing the original image into it.
+    			    recolor_data.ctx.drawImage( img, 0, 0, img.naturalWidth, img.naturalHeight );
+    			}
+    			var ctx = recolor_data.ctx;
+    			
+			    // Create an imagedata if we don't have one yet.
+			    if( !( 'imagedata' in recolor_data ) ) {
+			        // ctx.getImageData() gets a copy of the context's imagedata.
+			        recolor_data.imagedata = ctx.getImageData( 0, 0, img.naturalWidth, img.naturalHeight );
+			    }
+			    var imagedata = recolor_data.imagedata;
+			    
+			    // Iterate over every pixel and set it.
+			    var total = [ 0., 0., 0. ];
+			    for( var row = 0; row < imagedata.height; ++row ) {
+			        for( var col = 0; col < imagedata.width; ++col ) {
+    			        // Initialize the sum to 0.
+    			        for( var chan = 0; chan < 3; ++chan ) {
+    			            total[chan] = 0.;
+    			        }
+			            
+			            // Add every color multiplied by its weight.
+			            for( var wi = 0; wi < weights[row][col].length; ++wi ) {
+			                // Get the weight.
+			                var w = weights[row][col][wi];
+			                
+			                // total += sum_i weight_i * color_i
+        			        for( var chan = 0; chan < 3; ++chan ) {
+        			            total[chan] += w * colors[wi][chan];
+        			        }
+			            }
+			            // Scale by 255. and clamp the color.
+			            for( var chan = 0; chan < 3; ++chan ) {
+			                total[chan] = Math.min( 255, Math.max( 0, 255*total[chan] ) );
+			            }
+			            
+			            // Set the imagedata.
+			            for( var chan = 0; chan < 3; ++chan ) {
+			                imagedata.data[ chan + 4*( col + imagedata.width*row ) ] = total[chan];
+			            }
+			        }
+			    }
+			    
+			    ctx.putImageData( imagedata, 0, 0 );
+			}
 			
             function createAxisLine( position0, position1, color0, color1, dashed ) {
                 // From: http://soledadpenades.com/articles/three-js-tutorials/drawing-the-coordinate-axes/
@@ -415,8 +497,15 @@
 			
 			function clearOverlayMesh()
 			{
-			    if( overlayMeshEdges !== undefined ) scene.remove( overlayMeshEdges );
-			    if( overlayMeshVertices !== undefined ) scene.remove( overlayMeshVertices );
+			    if( overlayMeshEdges !== null ) scene.remove( overlayMeshEdges );
+			    if( overlayMeshVertices !== null ) scene.remove( overlayMeshVertices );
+			    if( overlayMeshVerticesRims !== null ) scene.remove( overlayMeshVerticesRims );
+			    
+			    overlayMeshEdges = null;
+			    overlayMeshVertices = null;
+			    overlayMeshVerticesRims = null;
+			    
+			    clearWeights();
 			}
 			function loadOverlayMesh( hull )
 			{
@@ -475,6 +564,7 @@
 				/// Create the overlayMeshVertices
 				if( hull.vs.length > 0 ) {
                     overlayMeshVertices = new THREE.Object3D();
+                    overlayMeshVerticesRims = new THREE.Object3D();
                     // Create a circle for each vertex
                     for( var i = 0; i < hull.vs.length; ++i ) {
                         var vert = hull.vs[i];
@@ -496,13 +586,112 @@
                         circle = new THREE.Mesh( circleGeometry, new THREE.MeshBasicMaterial({ color: 0xFFFFFF }) );
                         circle.position.set( vert[0]/255., vert[1]/255., vert[2]/255. );
                         
-                        overlayMeshVertices.add( circle );
+                        overlayMeshVerticesRims.add( circle );
                     }
                     scene.add( overlayMeshVertices );
+                    scene.add( overlayMeshVerticesRims );
 				}
 				
 				
 				render();
+				
+				testLoadWeights();
+			}
+			function loadableOverlayMesh( hull )
+			{
+			    // We can load an overlay mesh from `hull` if it contains 'faces'.
+                return 'faces' in hull;
+			}
+			
+			function clearWeights()
+			{
+			    weights = null;
+			    // Hide the canvas
+			    var recolor = document.getElementById('image_recolor');
+			    recolor.width = 0;
+			    recolor.height = 0;
+			    recolor.style.display = "none";
+			    recolor_data = null;
+			}
+			function loadableWeights( parsed_weights )
+			{
+			    return 'weights' in parsed_weights;
+			}
+			function loadWeights( parsed_weights )
+			{
+			    console.log( "loadWeights( ... ):" );
+			    console.log( parsed_weights );
+			    
+			    clearWeights();
+			    
+			    // If we don't have an image or an overlay mesh, it doesn't make sense
+			    // to load weights.
+			    if( img == null || overlayMeshVertices == null ) {
+			        console.error( "loadWeights(): No loaded image and overlay mesh." );
+			        return;
+			    }
+			    
+			    // 'weights' should be an img.height-length array containing
+			    // img.width-length arrays of overlayMeshVertices.children.length arrays of
+			    // floating point weight values. Each inner-most array should sum
+			    // to 1.
+			    if( parsed_weights.weights.length !== img.naturalHeight ||
+			        parsed_weights.weights[0].length !== img.naturalWidth ||
+			        parsed_weights.weights[0][0].length !== overlayMeshVertices.children.length
+			        ) {
+			        console.error( "loadWeights(): weights doesn't have the right dimensions." );
+			        return;
+			    }
+			    
+			    weights = parsed_weights.weights;
+			    
+			    // Check that each weights sum to 1.
+			    for( var row = 0; row < weights.length; ++row ) {
+			        for( var col = 0; col < weights[row].length; ++col ) {
+			            var total = 0.;
+			            for( var wi = 0; wi < weights[row][col].length; ++wi ) {
+			                total += weights[row][col][wi];
+			            }
+			            if( Math.abs( 1. - total ) > 1e-4 ) {
+			                console.warn( "loadWeights() encountered a pixel whose weights don't sum to 1." );
+			            }
+			        }
+			    }
+			    
+			    var recolor = document.getElementById('image_recolor');
+			    // Create a canvas object for it and write to it.
+			    recolor.width = img.naturalWidth;
+			    recolor.height = img.naturalHeight;
+			    recolor.style.display = "inline";
+			    
+			    recolor_data = {};
+			    drawRecolorImage();
+			    // Open the canvas in a new window on click.
+			    recolor.onclick = function() {
+			        var kMIMEType = "image/png";
+                    var dataURL = recolor.toDataURL( kMIMEType );
+                    // Open in a new window.
+                    window.open( dataURL );
+			    };
+			}
+			function testLoadWeights()
+			{
+			    var w = [];
+			    for( var row = 0; row < img.naturalHeight; ++row ) {
+			        w[row] = [];
+			        for( var col = 0; col < img.naturalWidth; ++col ) {
+			            w[row][col] = [];
+    			        for( var wi = 0; wi < overlayMeshVertices.children.length; ++wi ) {
+			                // Set equal weights for every hull vertex.
+			                w[row][col][wi] = 1./overlayMeshVertices.children.length;
+			            }
+			        }
+			    }
+			    
+			    var payload = { 'weights': w };
+			    
+			    console.log( "loadableWeights():", loadableWeights( payload ) );
+			    loadWeights( payload );
 			}
 			
 			function initControls( camera ) {
@@ -618,10 +807,10 @@
 
 			function render() {
 			    // HACK: Update overlay mesh vertices' white rims.
-			    if( overlayMeshVertices !== undefined ) {
-			        for( var i = 1; i < overlayMeshVertices.children.length; i += 2 )
+			    if( overlayMeshVerticesRims !== null ) {
+			        for( var i = 0; i < overlayMeshVerticesRims.children.length; ++i )
 			        {
-			            overlayMeshVertices.children[i].lookAt( camera.position );
+			            overlayMeshVerticesRims.children[i].lookAt( camera.position );
 			        }
 			    }
 			    
