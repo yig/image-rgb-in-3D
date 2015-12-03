@@ -1,67 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<title>Visualize the colors of an image as a 3D RGB point cloud</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<style>
-			body {
-				color: #cccccc;
-				font-family:Monospace;
-				font-size:13px;
-				
-				background-color: #333;
-				margin: 0px;
-				overflow: hidden;
-				
-				line-height: 20px;
-			}
-			
-			#container
-			{
-			    z-index: 10;
-			}
+    <head>
+        <title>Visualize the colors of an image as a 3D RGB point cloud</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <style>
+            body {
+                color: #cccccc;
+                font-family:Monospace;
+                font-size:13px;
+                
+                background-color: #333;
+                margin: 0px;
+                overflow: hidden;
+                
+                line-height: 20px;
+            }
+            
+            #container
+            {
+                z-index: 10;
+            }
 
-			#info {
-				position: absolute;
-				top: 0px; width: 100%;
-				padding: 5px;
-			}
-			#image_holder
-			{
-			    float: left;
-			    text-align: center;
-			}
-			.image
-			{
-			    max-width: 200px;
-			    height: auto;
-			}
-			#img_name
-			{
-			    max-width: 200px;
-			}
-			
-			.widget
-			{
-			    clear: both;
-			    padding-top: 5px;
-			}
+            #info {
+                position: absolute;
+                top: 0px; width: 100%;
+                padding: 5px;
+            }
+            #image_holder
+            {
+                float: left;
+                text-align: center;
+            }
+            .image
+            {
+                max-width: 200px;
+                height: auto;
+            }
+            #img_name
+            {
+                max-width: 200px;
+            }
+            
+            .widget
+            {
+                clear: both;
+                padding-top: 5px;
+            }
 
-			a {
+            a {
 
-				color: #0080ff;
-			}
-		</style>
-	</head>
-	<body>
+                color: #0080ff;
+            }
+        </style>
+    </head>
+    <body>
 
-		<div id="container"></div>
-		<div id="info">
-		    <div>Visualize the colors of an image as a 3D RGB point cloud.</div>
-		    
-		    <div id="image_holder">
-		        <a id="img_info" href="#" target="_blank">
+        <div id="container"></div>
+        <div id="info">
+            <div>Visualize the colors of an image as a 3D RGB point cloud.</div>
+            
+            <div id="image_holder">
+                <a id="img_info" href="#" target="_blank">
                     <div id="img_name">image name</div>
                     <img id="image" class="image" src="" alt="Visualized image">
                 </a>
@@ -70,54 +70,54 @@
                 <div id="debug"></div>
                 <br>
                 <input id="upload" type="file">
-    		</div>
-    		
-    		<div class="widget"><label>Rotation has intertia:<input type="checkbox" id="intertia" /></label></div>
-    		<!-- <div class="widget"><button id="look_from_white">Look from white</button></div> -->
-    		<div><a href="#" id="look_from_white">Look from white</a></div>
-    		<div id="saveScreenshot"><a href="#" onclick="saveScreenshot()">Save PNG</a></div>
-    	</div>
+            </div>
+            
+            <div class="widget"><label>Rotation has intertia:<input type="checkbox" id="intertia" /></label></div>
+            <!-- <div class="widget"><button id="look_from_white">Look from white</button></div> -->
+            <div><a href="#" id="look_from_white">Look from white</a></div>
+            <div id="saveScreenshot"><a href="#" onclick="saveScreenshot()">Save PNG</a></div>
+        </div>
 
-		<script src="js/three.min.js"></script>
+        <script src="js/three.min.js"></script>
 
         <script src="js/controls/TrackballControls.js"></script>
-		<script src="js/Detector.js"></script>
-		<script src="js/libs/stats.min.js"></script>
-		<script src="js/purl.js"></script>
-		
-		<!--
-		<script src="js/Blob.js"></script>
-		<script src="js/FileSaver.js"></script>
-		-->
+        <script src="js/Detector.js"></script>
+        <script src="js/libs/stats.min.js"></script>
+        <script src="js/purl.js"></script>
+        
+        <!--
+        <script src="js/Blob.js"></script>
+        <script src="js/FileSaver.js"></script>
+        -->
 
-		<script>
-			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+        <script>
+            if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-			var container, stats;
+            var container, stats;
 
-			var camera, scene, renderer, controls;
+            var camera, scene, renderer, controls;
 
-			var particleSystem;
-			var img = null;
-			
-			var overlayMeshVertices = null, overlayMeshEdges = null, overlayMeshVerticesRims = null;
-			
-			var weights = null;
-			var recolor_data = null;
-			
-			// True by default
-			var kScreenshots = true;
-			// unless a `screenshots` parameter is passed with the value 'no'.
-			// if( purl().param('screenshots') === 'no' ) kScreenshots = false;
-			// var kScreenshots = purl().param('screenshots') !== undefined;
-			// Hide the Save PNG button if screenshots is not present.
-			if( !kScreenshots ) {
-	    		var saveScreenshotButton = document.getElementById( 'saveScreenshot' )
-    			saveScreenshotButton.parentNode.removeChild( saveScreenshotButton );
-    		}
-			console.log( "purl 'screenshots': " + purl().param('screenshots') );
+            var particleSystem;
+            var img = null;
+            
+            var overlayMeshVertices = null, overlayMeshEdges = null, overlayMeshVerticesRims = null;
+            
+            var weights = null;
+            var recolor_data = null;
+            
+            // True by default
+            var kScreenshots = true;
+            // unless a `screenshots` parameter is passed with the value 'no'.
+            // if( purl().param('screenshots') === 'no' ) kScreenshots = false;
+            // var kScreenshots = purl().param('screenshots') !== undefined;
+            // Hide the Save PNG button if screenshots is not present.
+            if( !kScreenshots ) {
+                var saveScreenshotButton = document.getElementById( 'saveScreenshot' )
+                saveScreenshotButton.parentNode.removeChild( saveScreenshotButton );
+            }
+            console.log( "purl 'screenshots': " + purl().param('screenshots') );
             console.log( "kScreenshots: " + kScreenshots );
-			
+            
             init3D();
             if( purl().param('image') !== undefined )
             {
@@ -303,140 +303,140 @@
                 return result;
             }
             
-			function createParticles()
+            function createParticles()
             {
                 if( particleSystem !== undefined ) scene.remove( particleSystem );
                 // Also clear the overlay mesh if there is one.
                 clearOverlayMesh();
                 
-				// Get the particles from the image's pixels.
-				// From: http://stackoverflow.com/questions/1041399/how-to-use-javascript-or-jquery-to-read-a-pixel-of-an-image
-				var canvas = document.createElement('canvas');
-				canvas.width = img.naturalWidth;
-				canvas.height = img.naturalHeight;
-				var ctx = canvas.getContext("2d");
-				ctx.drawImage( img, 0, 0, img.naturalWidth, img.naturalHeight );
-				// getImageData returns an RGBA byte array.
-				var pixels = uniquePixels( ctx.getImageData( 0, 0, canvas.width, canvas.height ).data );
+                // Get the particles from the image's pixels.
+                // From: http://stackoverflow.com/questions/1041399/how-to-use-javascript-or-jquery-to-read-a-pixel-of-an-image
+                var canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                var ctx = canvas.getContext("2d");
+                ctx.drawImage( img, 0, 0, img.naturalWidth, img.naturalHeight );
+                // getImageData returns an RGBA byte array.
+                var pixels = uniquePixels( ctx.getImageData( 0, 0, canvas.width, canvas.height ).data );
                 
-				var particles = pixels.length / 4;
+                var particles = pixels.length / 4;
 
-				var geometry = new THREE.BufferGeometry();
+                var geometry = new THREE.BufferGeometry();
 
-				var positions = new Float32Array( particles * 3 );
-				var colors = new Float32Array( particles * 3 );
+                var positions = new Float32Array( particles * 3 );
+                var colors = new Float32Array( particles * 3 );
 
-				var color = new THREE.Color();
+                var color = new THREE.Color();
 
-				for ( var i = 0; i < particles; i += 1 ) {
+                for ( var i = 0; i < particles; i += 1 ) {
 
-					// colors
+                    // colors
 
-					var r = pixels[ 4*i + 0 ]/255.;
-					var g = pixels[ 4*i + 1 ]/255.;
-					var b = pixels[ 4*i + 2 ]/255.;
-					
-					positions[ 3*i + 0 ] = r;
-					positions[ 3*i + 1 ] = g;
-					positions[ 3*i + 2 ] = b;
+                    var r = pixels[ 4*i + 0 ]/255.;
+                    var g = pixels[ 4*i + 1 ]/255.;
+                    var b = pixels[ 4*i + 2 ]/255.;
+                    
+                    positions[ 3*i + 0 ] = r;
+                    positions[ 3*i + 1 ] = g;
+                    positions[ 3*i + 2 ] = b;
 
-					color.setRGB( r, g, b );
+                    color.setRGB( r, g, b );
 
-					colors[ 3*i + 0 ] = color.r;
-					colors[ 3*i + 1 ] = color.g;
-					colors[ 3*i + 2 ] = color.b;
+                    colors[ 3*i + 0 ] = color.r;
+                    colors[ 3*i + 1 ] = color.g;
+                    colors[ 3*i + 2 ] = color.b;
 
-				}
-				
-				document.getElementById('debug').innerHTML =
-				    'width: ' + img.naturalWidth + ', height: ' + img.naturalHeight
-				    +
-				    '<br>total pixels: ' + canvas.width*canvas.height
-				    +
-				    '<br>unique pixels: ' + particles
-				    ;
+                }
+                
+                document.getElementById('debug').innerHTML =
+                    'width: ' + img.naturalWidth + ', height: ' + img.naturalHeight
+                    +
+                    '<br>total pixels: ' + canvas.width*canvas.height
+                    +
+                    '<br>unique pixels: ' + particles
+                    ;
 
-				geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-				geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+                geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+                geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
 
-				geometry.computeBoundingSphere();
+                geometry.computeBoundingSphere();
 
-				//
+                //
 
-				var material = new THREE.PointCloudMaterial( { size: 4/255., vertexColors: THREE.VertexColors } );
+                var material = new THREE.PointCloudMaterial( { size: 4/255., vertexColors: THREE.VertexColors } );
 
-				particleSystem = new THREE.PointCloud( geometry, material );
-				// return particleSystem;
-				scene.add( particleSystem );
-				
-				render();
-			}
-			function drawRecolorImage()
-			{
-			    if( weights == null ) {
-			        console.error( "drawRecolorImage() but weights == null." );
-			        return;
-			    }
-			    
-			    // Get the colors.
-			    var colors = [];
-			    colors.length = overlayMeshVertices.children.length;
-			    for( var i = 0; i < overlayMeshVertices.children.length; ++i )
+                particleSystem = new THREE.PointCloud( geometry, material );
+                // return particleSystem;
+                scene.add( particleSystem );
+                
+                render();
+            }
+            function drawRecolorImage()
+            {
+                if( weights == null ) {
+                    console.error( "drawRecolorImage() but weights == null." );
+                    return;
+                }
+                
+                // Get the colors.
+                var colors = [];
+                colors.length = overlayMeshVertices.children.length;
+                for( var i = 0; i < overlayMeshVertices.children.length; ++i )
                 {
                     var pos = overlayMeshVertices.children[i].position;
                     colors[i] = [ pos.x, pos.y, pos.z ];
                 }
-			    
-			    // Create a context2d if we don't have one yet.
-			    if( !( 'ctx' in recolor_data ) ) {
-			        var recolor = document.getElementById('image_recolor');
-    			    recolor_data.ctx = recolor.getContext("2d");
-    			    // Initialize the canvas by drawing the original image into it.
-    			    recolor_data.ctx.drawImage( img, 0, 0, img.naturalWidth, img.naturalHeight );
-    			}
-    			var ctx = recolor_data.ctx;
-    			
-			    // Create an imagedata if we don't have one yet.
-			    if( !( 'imagedata' in recolor_data ) ) {
-			        // ctx.getImageData() gets a copy of the context's imagedata.
-			        recolor_data.imagedata = ctx.getImageData( 0, 0, img.naturalWidth, img.naturalHeight );
-			    }
-			    var imagedata = recolor_data.imagedata;
-			    
-			    // Iterate over every pixel and set it.
-			    var total = [ 0., 0., 0. ];
-			    for( var row = 0; row < imagedata.height; ++row ) {
-			        for( var col = 0; col < imagedata.width; ++col ) {
-    			        // Initialize the sum to 0.
-    			        for( var chan = 0; chan < 3; ++chan ) {
-    			            total[chan] = 0.;
-    			        }
-			            
-			            // Add every color multiplied by its weight.
-			            for( var wi = 0; wi < weights[row][col].length; ++wi ) {
-			                // Get the weight.
-			                var w = weights[row][col][wi];
-			                
-			                // total += sum_i weight_i * color_i
-        			        for( var chan = 0; chan < 3; ++chan ) {
-        			            total[chan] += w * colors[wi][chan];
-        			        }
-			            }
-			            // Scale by 255. and clamp the color.
-			            for( var chan = 0; chan < 3; ++chan ) {
-			                total[chan] = Math.min( 255, Math.max( 0, 255*total[chan] ) );
-			            }
-			            
-			            // Set the imagedata.
-			            for( var chan = 0; chan < 3; ++chan ) {
-			                imagedata.data[ chan + 4*( col + imagedata.width*row ) ] = total[chan];
-			            }
-			        }
-			    }
-			    
-			    ctx.putImageData( imagedata, 0, 0 );
-			}
-			
+                
+                // Create a context2d if we don't have one yet.
+                if( !( 'ctx' in recolor_data ) ) {
+                    var recolor = document.getElementById('image_recolor');
+                    recolor_data.ctx = recolor.getContext("2d");
+                    // Initialize the canvas by drawing the original image into it.
+                    recolor_data.ctx.drawImage( img, 0, 0, img.naturalWidth, img.naturalHeight );
+                }
+                var ctx = recolor_data.ctx;
+                
+                // Create an imagedata if we don't have one yet.
+                if( !( 'imagedata' in recolor_data ) ) {
+                    // ctx.getImageData() gets a copy of the context's imagedata.
+                    recolor_data.imagedata = ctx.getImageData( 0, 0, img.naturalWidth, img.naturalHeight );
+                }
+                var imagedata = recolor_data.imagedata;
+                
+                // Iterate over every pixel and set it.
+                var total = [ 0., 0., 0. ];
+                for( var row = 0; row < imagedata.height; ++row ) {
+                    for( var col = 0; col < imagedata.width; ++col ) {
+                        // Initialize the sum to 0.
+                        for( var chan = 0; chan < 3; ++chan ) {
+                            total[chan] = 0.;
+                        }
+                        
+                        // Add every color multiplied by its weight.
+                        for( var wi = 0; wi < weights[row][col].length; ++wi ) {
+                            // Get the weight.
+                            var w = weights[row][col][wi];
+                            
+                            // total += sum_i weight_i * color_i
+                            for( var chan = 0; chan < 3; ++chan ) {
+                                total[chan] += w * colors[wi][chan];
+                            }
+                        }
+                        // Scale by 255. and clamp the color.
+                        for( var chan = 0; chan < 3; ++chan ) {
+                            total[chan] = Math.min( 255, Math.max( 0, 255*total[chan] ) );
+                        }
+                        
+                        // Set the imagedata.
+                        for( var chan = 0; chan < 3; ++chan ) {
+                            imagedata.data[ chan + 4*( col + imagedata.width*row ) ] = total[chan];
+                        }
+                    }
+                }
+                
+                ctx.putImageData( imagedata, 0, 0 );
+            }
+            
             function createAxisLine( position0, position1, color0, color1, dashed ) {
                 // From: http://soledadpenades.com/articles/three-js-tutorials/drawing-the-coordinate-axes/
                 var geom = new THREE.Geometry();
@@ -460,9 +460,9 @@
                 
                 return axis;
             }
-			function buildAxes( length )
-			{
-			    // From: http://soledadpenades.com/articles/three-js-tutorials/drawing-the-coordinate-axes/
+            function buildAxes( length )
+            {
+                // From: http://soledadpenades.com/articles/three-js-tutorials/drawing-the-coordinate-axes/
                 var axes = new THREE.Object3D();
                 axes.add( createAxisLine( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( length, 0, 0 ), new THREE.Color( 0x000000 ), new THREE.Color( 0xFF0000 ), false ) ); // +X
                 // axes.add( buildAxis( new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( -length, 0, 0 ), 0xFF0000, true) ); // -X
@@ -493,27 +493,27 @@
                 axes.add( createAxisLine( new THREE.Vector3( length, length, length ), new THREE.Vector3( length, 0, length ), new THREE.Color( 0xFFFFFF ), new THREE.Color( 0xFF00FF ), false ) );
                 
                 return axes;
-			}
-			
-			function clearOverlayMesh()
-			{
-			    if( overlayMeshEdges !== null ) scene.remove( overlayMeshEdges );
-			    if( overlayMeshVertices !== null ) scene.remove( overlayMeshVertices );
-			    if( overlayMeshVerticesRims !== null ) scene.remove( overlayMeshVerticesRims );
-			    
-			    overlayMeshEdges = null;
-			    overlayMeshVertices = null;
-			    overlayMeshVerticesRims = null;
-			    
-			    clearWeights();
-			}
-			function loadOverlayMesh( hull )
-			{
-			    console.log( "loadOverlayMesh( ... ):" );
-			    console.log( hull );
-			    
-			    clearOverlayMesh();
-			    
+            }
+            
+            function clearOverlayMesh()
+            {
+                if( overlayMeshEdges !== null ) scene.remove( overlayMeshEdges );
+                if( overlayMeshVertices !== null ) scene.remove( overlayMeshVertices );
+                if( overlayMeshVerticesRims !== null ) scene.remove( overlayMeshVerticesRims );
+                
+                overlayMeshEdges = null;
+                overlayMeshVertices = null;
+                overlayMeshVerticesRims = null;
+                
+                clearWeights();
+            }
+            function loadOverlayMesh( hull )
+            {
+                console.log( "loadOverlayMesh( ... ):" );
+                console.log( hull );
+                
+                clearOverlayMesh();
+                
                 /// Create the overlayMeshEdges
                 if( hull.faces !== undefined && hull.faces.length > 0 ) {
                     var geometry = new THREE.Geometry();
@@ -558,11 +558,11 @@
                     
                     overlayMeshEdges = new THREE.Mesh( geometry, edge_material );
                     scene.add( overlayMeshEdges );
-				}
-				
-				
-				/// Create the overlayMeshVertices
-				if( hull.vs.length > 0 ) {
+                }
+                
+                
+                /// Create the overlayMeshVertices
+                if( hull.vs.length > 0 ) {
                     overlayMeshVertices = new THREE.Object3D();
                     overlayMeshVerticesRims = new THREE.Object3D();
                     // Create a circle for each vertex
@@ -590,234 +590,237 @@
                     }
                     scene.add( overlayMeshVertices );
                     scene.add( overlayMeshVerticesRims );
-				}
-				
-				
-				render();
-				
-				testLoadWeights();
-			}
-			function loadableOverlayMesh( hull )
-			{
-			    // We can load an overlay mesh from `hull` if it contains 'faces'.
+                }
+                
+                
+                render();
+                
+                testLoadWeights();
+            }
+            function loadableOverlayMesh( hull )
+            {
+                // We can load an overlay mesh from `hull` if it contains 'faces'.
                 return 'faces' in hull;
-			}
-			
-			function clearWeights()
-			{
-			    weights = null;
-			    // Hide the canvas
-			    var recolor = document.getElementById('image_recolor');
-			    recolor.width = 0;
-			    recolor.height = 0;
-			    recolor.style.display = "none";
-			    recolor_data = null;
-			}
-			function loadableWeights( parsed_weights )
-			{
-			    return 'weights' in parsed_weights;
-			}
-			function loadWeights( parsed_weights )
-			{
-			    console.log( "loadWeights( ... ):" );
-			    console.log( parsed_weights );
-			    
-			    clearWeights();
-			    
-			    // If we don't have an image or an overlay mesh, it doesn't make sense
-			    // to load weights.
-			    if( img == null || overlayMeshVertices == null ) {
-			        console.error( "loadWeights(): No loaded image and overlay mesh." );
-			        return;
-			    }
-			    
-			    // 'weights' should be an img.height-length array containing
-			    // img.width-length arrays of overlayMeshVertices.children.length arrays of
-			    // floating point weight values. Each inner-most array should sum
-			    // to 1.
-			    if( parsed_weights.weights.length !== img.naturalHeight ||
-			        parsed_weights.weights[0].length !== img.naturalWidth ||
-			        parsed_weights.weights[0][0].length !== overlayMeshVertices.children.length
-			        ) {
-			        console.error( "loadWeights(): weights doesn't have the right dimensions." );
-			        return;
-			    }
-			    
-			    weights = parsed_weights.weights;
-			    
-			    // Check that each weights sum to 1.
-			    for( var row = 0; row < weights.length; ++row ) {
-			        for( var col = 0; col < weights[row].length; ++col ) {
-			            var total = 0.;
-			            for( var wi = 0; wi < weights[row][col].length; ++wi ) {
-			                total += weights[row][col][wi];
-			            }
-			            if( Math.abs( 1. - total ) > 1e-4 ) {
-			                console.warn( "loadWeights() encountered a pixel whose weights don't sum to 1." );
-			            }
-			        }
-			    }
-			    
-			    var recolor = document.getElementById('image_recolor');
-			    // Create a canvas object for it and write to it.
-			    recolor.width = img.naturalWidth;
-			    recolor.height = img.naturalHeight;
-			    recolor.style.display = "inline";
-			    
-			    recolor_data = {};
-			    drawRecolorImage();
-			    // Open the canvas in a new window on click.
-			    recolor.onclick = function() {
-			        var kMIMEType = "image/png";
+            }
+            
+            function clearWeights()
+            {
+                weights = null;
+                // Hide the canvas
+                var recolor = document.getElementById('image_recolor');
+                recolor.width = 0;
+                recolor.height = 0;
+                recolor.style.display = "none";
+                recolor_data = null;
+            }
+            function loadableWeights( parsed_weights )
+            {
+                return 'weights' in parsed_weights;
+            }
+            function loadWeights( parsed_weights )
+            {
+                console.log( "loadWeights( ... ):" );
+                console.log( parsed_weights );
+                
+                clearWeights();
+                
+                // If we don't have an image or an overlay mesh, it doesn't make sense
+                // to load weights.
+                if( img == null || overlayMeshVertices == null ) {
+                    console.error( "loadWeights(): No loaded image and overlay mesh." );
+                    return;
+                }
+                
+                // 'weights' should be an img.height-length array containing
+                // img.width-length arrays of overlayMeshVertices.children.length arrays of
+                // floating point weight values. Each inner-most array should sum
+                // to 1.
+                if( parsed_weights.weights.length !== img.naturalHeight ||
+                    parsed_weights.weights[0].length !== img.naturalWidth ||
+                    parsed_weights.weights[0][0].length !== overlayMeshVertices.children.length
+                    ) {
+                    console.error( "loadWeights(): weights doesn't have the right dimensions." );
+                    return;
+                }
+                
+                weights = parsed_weights.weights;
+                
+                // Check that each weights sum to 1.
+                for( var row = 0; row < weights.length; ++row ) {
+                    for( var col = 0; col < weights[row].length; ++col ) {
+                        var total = 0.;
+                        for( var wi = 0; wi < weights[row][col].length; ++wi ) {
+                            total += weights[row][col][wi];
+                        }
+                        if( Math.abs( 1. - total ) > 1e-4 ) {
+                            console.warn( "loadWeights() encountered a pixel whose weights don't sum to 1." );
+                        }
+                    }
+                }
+                
+                var recolor = document.getElementById('image_recolor');
+                // Create a canvas object for it and write to it.
+                recolor.width = img.naturalWidth;
+                recolor.height = img.naturalHeight;
+                recolor.style.display = "inline";
+                
+                recolor_data = {};
+                drawRecolorImage();
+                // Open the canvas in a new window on click.
+                recolor.onclick = function() {
+                    var kMIMEType = "image/png";
                     var dataURL = recolor.toDataURL( kMIMEType );
                     // Open in a new window.
                     window.open( dataURL );
-			    };
-			}
-			function testLoadWeights()
-			{
-			    var w = [];
-			    for( var row = 0; row < img.naturalHeight; ++row ) {
-			        w[row] = [];
-			        for( var col = 0; col < img.naturalWidth; ++col ) {
-			            w[row][col] = [];
-    			        for( var wi = 0; wi < overlayMeshVertices.children.length; ++wi ) {
-			                // Set equal weights for every hull vertex.
-			                w[row][col][wi] = 1./overlayMeshVertices.children.length;
-			            }
-			        }
-			    }
-			    
-			    var payload = { 'weights': w };
-			    
-			    console.log( "loadableWeights():", loadableWeights( payload ) );
-			    loadWeights( payload );
-			}
-			
-			function initControls( camera ) {
-			    controls = new THREE.TrackballControls( camera );
-			    controls.target.set( .5, .5, .5 );
-			    
-			    controls.rotateSpeed = 1.0;
-				controls.zoomSpeed = 1.2;
-				controls.panSpeed = 0.8;
+                    };
+            }
+            function testLoadWeights()
+            {
+                var w = [];
+                for( var row = 0; row < img.naturalHeight; ++row ) {
+                    w[row] = [];
+                    for( var col = 0; col < img.naturalWidth; ++col ) {
+                        w[row][col] = [];
+                        for( var wi = 0; wi < overlayMeshVertices.children.length; ++wi ) {
+                            // Set equal weights for every hull vertex.
+                            w[row][col][wi] = 1./overlayMeshVertices.children.length;
+                        }
+                    }
+                }
+                
+                var payload = { 'weights': w };
+                
+                console.log( "loadableWeights():", loadableWeights( payload ) );
+                loadWeights( payload );
+            }
+            
+            function initControls( camera ) {
+                controls = new THREE.TrackballControls( camera );
+                controls.target.set( .5, .5, .5 );
+                
+                controls.rotateSpeed = 1.0;
+                controls.zoomSpeed = 1.2;
+                controls.panSpeed = 0.8;
 
-				controls.noZoom = true;
-				controls.noPan = true;
-				// Keep the horizon level? No.
-				camera.noRoll = false;
+                controls.noZoom = true;
+                controls.noPan = true;
+                // Keep the horizon level? No.
+                camera.noRoll = false;
 
-				controls.staticMoving = true;
-				// dynamicDampingFactor only has an effect when staticMoving is false.
-				// Setting it to 0 allows constant-speed rotation in a loop.
-				controls.dynamicDampingFactor = 0.0;
+                controls.staticMoving = true;
+                // dynamicDampingFactor only has an effect when staticMoving is false.
+                // Setting it to 0 allows constant-speed rotation in a loop.
+                controls.dynamicDampingFactor = 0.0;
 
-				controls.addEventListener( 'change', render );
+                // We need this because we wouldn't otherwise call render().
+                // Namely, we do not call render() in our animate() function called
+                // many times per second.
+                controls.addEventListener( 'change', render );
 
-				// Set up the inertial rotation checkbox.
-				document.getElementById( 'intertia' ).addEventListener( 'change', function() { controls.staticMoving = !document.getElementById('intertia').checked; } );
-				document.getElementById( 'intertia' ).checked = !controls.staticMoving;
-				
-				document.getElementById( 'look_from_white' ).addEventListener( 'click', function() {
-				    // First reset the controls
-				    controls.reset();
-				    controls.target.set( .5, .5, .5 );
-				    
-				    var targetToCameraLength = camera.position.clone().sub( controls.target ).length();
-				    
-				    camera.position.set( 1, 1, 1 );
-				    camera.position.sub( controls.target ).setLength( targetToCameraLength ).add( controls.target );
-				    } );
-			}
-			
-			function init3D() {
+                // Set up the inertial rotation checkbox.
+                document.getElementById( 'intertia' ).addEventListener( 'change', function() { controls.staticMoving = !document.getElementById('intertia').checked; } );
+                document.getElementById( 'intertia' ).checked = !controls.staticMoving;
+                
+                document.getElementById( 'look_from_white' ).addEventListener( 'click', function() {
+                    // First reset the controls
+                    controls.reset();
+                    controls.target.set( .5, .5, .5 );
+                    
+                    var targetToCameraLength = camera.position.clone().sub( controls.target ).length();
+                    
+                    camera.position.set( 1, 1, 1 );
+                    camera.position.sub( controls.target ).setLength( targetToCameraLength ).add( controls.target );
+                    } );
+            }
+            
+            function init3D() {
 
-				container = document.getElementById( 'container' );
+                container = document.getElementById( 'container' );
 
-				//
+                //
 
-				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10 );
-				camera.position.set( .5, .5, 3 );
-				camera.lookAt( new THREE.Vector3( .5, .5, .5 ) );
-				// camera = new THREE.OrthographicCamera( -1, 2, 2, -1, 1, 4 );
-				// camera.position.z = 4;
+                camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10 );
+                camera.position.set( .5, .5, 3 );
+                camera.lookAt( new THREE.Vector3( .5, .5, .5 ) );
+                // camera = new THREE.OrthographicCamera( -1, 2, 2, -1, 1, 4 );
+                // camera.position.z = 4;
 
-				scene = new THREE.Scene();
-				// scene.fog = new THREE.Fog( 0x050505, 2000, 3500 );
+                scene = new THREE.Scene();
+                // scene.fog = new THREE.Fog( 0x050505, 2000, 3500 );
                 
                 //
                 
                 // scene.add( createParticles() );
-				scene.add( buildAxes( 1. ) );
+                scene.add( buildAxes( 1. ) );
                 
-				//
+                //
 
-				renderer = new THREE.WebGLRenderer( {
-				    antialias: true,
-				    // This is necessary for saving screenshots with .toDataURL("image/png")
-				    preserveDrawingBuffer: kScreenshots // true
-				    } );
-				// renderer.setClearColor( scene.fog.color );
-				renderer.setClearColor( new THREE.Color( '#888888' ) );
-				// I tried setting this to 3., and the canvas appears stretched.
-				renderer.setPixelRatio( kScreenshots ? 2. : window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
+                renderer = new THREE.WebGLRenderer( {
+                    antialias: true,
+                    // This is necessary for saving screenshots with .toDataURL("image/png")
+                    preserveDrawingBuffer: kScreenshots // true
+                    } );
+                // renderer.setClearColor( scene.fog.color );
+                renderer.setClearColor( new THREE.Color( '#888888' ) );
+                // I tried setting this to 3., and the canvas appears stretched.
+                renderer.setPixelRatio( kScreenshots ? 2. : window.devicePixelRatio );
+                renderer.setSize( window.innerWidth, window.innerHeight );
 
-				container.appendChild( renderer.domElement );
+                container.appendChild( renderer.domElement );
 
-				//
+                //
 
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				stats.domElement.style.right = '0px';
-				container.appendChild( stats.domElement );
+                stats = new Stats();
+                stats.domElement.style.position = 'absolute';
+                stats.domElement.style.top = '0px';
+                stats.domElement.style.right = '0px';
+                container.appendChild( stats.domElement );
 
-				//
+                //
 
-				window.addEventListener( 'resize', onWindowResize, false );
+                window.addEventListener( 'resize', onWindowResize, false );
                 
                 initControls( camera );
                 
                 // Start drawing
                 animate();
                 render();
-			}
+            }
 
-			function onWindowResize() {
+            function onWindowResize() {
 
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
 
-				renderer.setSize( window.innerWidth, window.innerHeight );
+                renderer.setSize( window.innerWidth, window.innerHeight );
                 
                 controls.handleResize();
                 
                 render();
-			}
+            }
 
-			//
+            //
 
-			function animate() {
-				requestAnimationFrame( animate );
+            function animate() {
+                requestAnimationFrame( animate );
                 controls.update();
                 // If we have dynamic movement, we need to call render every frame.
                 if( !controls.staticMoving ) render();
-			}
+            }
 
-			function render() {
-			    // HACK: Update overlay mesh vertices' white rims.
-			    if( overlayMeshVerticesRims !== null ) {
-			        for( var i = 0; i < overlayMeshVerticesRims.children.length; ++i )
-			        {
-			            overlayMeshVerticesRims.children[i].lookAt( camera.position );
-			        }
-			    }
-			    
-				renderer.render( scene, camera );
+            function render() {
+                // HACK: Update overlay mesh vertices' white rims.
+                if( overlayMeshVerticesRims !== null ) {
+                    for( var i = 0; i < overlayMeshVerticesRims.children.length; ++i )
+                    {
+                        overlayMeshVerticesRims.children[i].lookAt( camera.position );
+                    }
+                }
+                
+                renderer.render( scene, camera );
                 stats.update();
-			}
-		</script>
+            }
+        </script>
 
-	</body>
+    </body>
 </html>
