@@ -78,7 +78,7 @@
             <div id="saveScreenshot"><a href="#" onclick="saveScreenshot()">Save PNG</a></div>
         </div>
 
-        <script src="js/three.min.js"></script>
+        <script src="js/three.js"></script>
 
         <script src="js/controls/TrackballControls.js"></script>
         <script src="js/Detector.js"></script>
@@ -100,10 +100,13 @@
             var particleSystem;
             var img = null;
             
-            var overlayMeshVertices = null, overlayMeshEdges = null, overlayMeshVerticesRims = null;
+            var overlayMesh = null;
             
             var weights = null;
             var recolor_data = null;
+            
+            // For picking
+            var picking_data = {};
             
             // True by default
             var kScreenshots = true;
@@ -380,10 +383,10 @@
                 
                 // Get the colors.
                 var colors = [];
-                colors.length = overlayMeshVertices.children.length;
-                for( var i = 0; i < overlayMeshVertices.children.length; ++i )
+                colors.length = overlayMesh.vertices.children.length;
+                for( var i = 0; i < overlayMesh.vertices.children.length; ++i )
                 {
-                    var pos = overlayMeshVertices.children[i].position;
+                    var pos = overlayMesh.vertices.children[i].position;
                     colors[i] = [ pos.x, pos.y, pos.z ];
                 }
                 
@@ -497,13 +500,13 @@
             
             function clearOverlayMesh()
             {
-                if( overlayMeshEdges !== null ) scene.remove( overlayMeshEdges );
-                if( overlayMeshVertices !== null ) scene.remove( overlayMeshVertices );
-                if( overlayMeshVerticesRims !== null ) scene.remove( overlayMeshVerticesRims );
+                if( overlayMesh !== null ) {
+                    if( overlayMesh.edges !== null ) scene.remove( overlayMesh.edges );
+                    if( overlayMesh.vertices !== null ) scene.remove( overlayMesh.vertices );
+                    if( overlayMesh.verticesRims !== null ) scene.remove( overlayMesh.verticesRims );
+                }
                 
-                overlayMeshEdges = null;
-                overlayMeshVertices = null;
-                overlayMeshVerticesRims = null;
+                overlayMesh = null;
                 
                 clearWeights();
             }
@@ -513,13 +516,40 @@
                 console.log( hull );
                 
                 clearOverlayMesh();
+                // Create an empty object.
+                overlayMesh = {};
                 
-                /// Create the overlayMeshEdges
+                /// Create the overlayMesh.edges
                 if( hull.faces !== undefined && hull.faces.length > 0 ) {
                     var geometry = new THREE.Geometry();
                     
+                    /// "Dumb" faces which are each a triplet of positions.
+                    // Make them smart (faces should be indices into hull.vs).
+                    var smart_faces = [];
+                    // Iterate over the faces.
+                    for( var fi = 0; fi < hull.faces.length; ++fi ) {
+                        var dumb_face = hull.faces[fi];
+                        smart_faces.push( [] );
+                        // Each vertex of the face is a 3D position. Find the index of this position in hull.vs;
+                        for( var fvi = 0; fvi < 3; ++fvi ) {
+                            var vert = dumb_face[fvi];
+                            
+                            // Find the index of vert in hull.vs.
+                            var hull_vertex_index = -1;
+                            for( var vi = 0; vi < hull.vs.length; ++vi ) {
+                                if( vert[0] == hull.vs[vi][0] && vert[1] == hull.vs[vi][1] && vert[2] == hull.vs[vi][2] ) {
+                                    hull_vertex_index = vi;
+                                    break;
+                                }
+                            }
+                            if( -1 === hull_vertex_index ) { console.error("Overlay mesh faces use a non-existent vertex.") }
+                            smart_faces[fi].push( hull_vertex_index );
+                        }
+                    }
+                    
+                    
                     /// "Smart" faces which are indices into vertices.
-                    /*
+                    // smart_faces = hull.faces;
                     // Copy vertices
                     for( var i = 0; i < hull.vs.length; ++i ) {
                         var vert = hull.vs[i];
@@ -527,25 +557,10 @@
                     }
                     // Copy faces
                     for( var i = 0; i < hull.faces.length; ++i ) {
-                        var face = hull.faces[i];
+                        var face = smart_faces[i]; // hull.faces[i];
                         geometry.faces.push( new THREE.Face3( face[0], face[1], face[2] ) );
                     }
-                    */
                     
-                    
-                    /// "Dumb" faces which are each a triplet of positions.
-                    for( var i = 0; i < hull.faces.length; ++i ) {
-                        var face = hull.faces[i];
-                        
-                        var n = geometry.vertices.length;
-                        geometry.faces.push( new THREE.Face3( n+0, n+1, n+2 ) );
-                        
-                        for( var fi = 0; fi < 3; ++fi )
-                        {
-                            var vert = face[fi];
-                            geometry.vertices.push( new THREE.Vector3( vert[0]/255., vert[1]/255., vert[2]/255. ) );
-                        }
-                    }
                     
                     geometry.verticesNeedUpdate = true;
                     geometry.elementsNeedUpdate = true;
@@ -556,15 +571,17 @@
                         wireframeLinewidth: 10
                         });
                     
-                    overlayMeshEdges = new THREE.Mesh( geometry, edge_material );
-                    scene.add( overlayMeshEdges );
+                    overlayMesh.edges = new THREE.Mesh( geometry, edge_material );
+                    scene.add( overlayMesh.edges );
                 }
                 
                 
-                /// Create the overlayMeshVertices
+                /// Create the overlayMesh.vertices
                 if( hull.vs.length > 0 ) {
-                    overlayMeshVertices = new THREE.Object3D();
-                    overlayMeshVerticesRims = new THREE.Object3D();
+                    overlayMesh.vertices = new THREE.Object3D();
+                    overlayMesh.verticesRims = new THREE.Object3D();
+                    // We will keep a copy of the original position in case we later move them.
+                    overlayMesh.originalPositions = [];
                     // Create a circle for each vertex
                     for( var i = 0; i < hull.vs.length; ++i ) {
                         var vert = hull.vs[i];
@@ -577,8 +594,10 @@
                         var circleGeometry = new THREE.SphereGeometry( radius, segments, segments );
                         var circle = new THREE.Mesh( circleGeometry, circleMaterial );
                         circle.position.set( vert[0]/255., vert[1]/255., vert[2]/255. );
+                        // Make a copy of the position to have in case we later move it.
+                        overlayMesh.originalPositions.push( circle.position.clone() );
                         
-                        overlayMeshVertices.add( circle );
+                        overlayMesh.vertices.add( circle );
                         
                         
                         // HACK: A white rim.
@@ -586,10 +605,10 @@
                         circle = new THREE.Mesh( circleGeometry, new THREE.MeshBasicMaterial({ color: 0xFFFFFF }) );
                         circle.position.set( vert[0]/255., vert[1]/255., vert[2]/255. );
                         
-                        overlayMeshVerticesRims.add( circle );
+                        overlayMesh.verticesRims.add( circle );
                     }
-                    scene.add( overlayMeshVertices );
-                    scene.add( overlayMeshVerticesRims );
+                    scene.add( overlayMesh.vertices );
+                    scene.add( overlayMesh.verticesRims );
                 }
                 
                 
@@ -626,18 +645,18 @@
                 
                 // If we don't have an image or an overlay mesh, it doesn't make sense
                 // to load weights.
-                if( img == null || overlayMeshVertices == null ) {
+                if( img == null || overlayMesh.vertices == null ) {
                     console.error( "loadWeights(): No loaded image and overlay mesh." );
                     return;
                 }
                 
                 // 'weights' should be an img.height-length array containing
-                // img.width-length arrays of overlayMeshVertices.children.length arrays of
+                // img.width-length arrays of overlayMesh.vertices.children.length arrays of
                 // floating point weight values. Each inner-most array should sum
                 // to 1.
                 if( parsed_weights.weights.length !== img.naturalHeight ||
                     parsed_weights.weights[0].length !== img.naturalWidth ||
-                    parsed_weights.weights[0][0].length !== overlayMeshVertices.children.length
+                    parsed_weights.weights[0][0].length !== overlayMesh.vertices.children.length
                     ) {
                     console.error( "loadWeights(): weights doesn't have the right dimensions." );
                     return;
@@ -681,9 +700,9 @@
                     w[row] = [];
                     for( var col = 0; col < img.naturalWidth; ++col ) {
                         w[row][col] = [];
-                        for( var wi = 0; wi < overlayMeshVertices.children.length; ++wi ) {
+                        for( var wi = 0; wi < overlayMesh.vertices.children.length; ++wi ) {
                             // Set equal weights for every hull vertex.
-                            w[row][col][wi] = 1./overlayMeshVertices.children.length;
+                            w[row][col][wi] = 1./overlayMesh.vertices.children.length;
                         }
                     }
                 }
@@ -692,6 +711,141 @@
                 
                 console.log( "loadableWeights():", loadableWeights( payload ) );
                 loadWeights( payload );
+            }
+            
+            function mouseFromEvent( event ) {
+                var mouse = new THREE.Vector2();
+                
+                mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+                mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+                
+                return mouse;
+            }
+            var mouseActionHandler = {};
+            function onDocumentMouseDown( event ) {
+                // TODO Q: Should I call event.preventDefault() or are the controls doing that?
+                
+                // We could miss a mouse up event if the user switches apps in the middle
+                // of a drag. Always cleanup first.
+                if( 'cleanup' in mouseActionHandler ) mouseActionHandler.cleanup();
+                mouseActionHandler = {};
+                
+                // If we have an overlay mesh and weights, pick an overlay mesh vertex.
+                mouseActionHandler = mouseHandlersForDownOnOverlayMeshVertex( event );
+                if( mouseActionHandler !== null ) return;
+                
+                // If no one handled it, use an empty handler.
+                mouseActionHandler = {};
+            }
+            function onDocumentMouseMove( event ) {
+                // TODO Q: Should I call event.preventDefault() or are the controls doing that?
+                
+                if( 'drag' in mouseActionHandler ) mouseActionHandler.drag( event );
+            }
+            function onDocumentMouseUp( event ) {
+                // TODO Q: Should I call event.preventDefault() or are the controls doing that?
+                
+                if( 'up' in mouseActionHandler ) mouseActionHandler.up( event );
+                if( 'cleanup' in mouseActionHandler ) mouseActionHandler.cleanup();
+                
+                // Reset the mouse action handler.
+                mouseActionHandler = {};
+            }
+            
+            function mouseHandlersForDownOnOverlayMeshVertex( event ) {
+                // Returns an object containing optional 'drag' and 'up' and 'cleanup' functions.
+                // Returns null if not handling.
+                
+                // If there is no overlay mesh, return null;
+                if( overlayMesh == null || overlayMesh.vertices == null || weights == null ) return null;
+                
+                // Pick the overlayMesh.verticesRims.
+                var mouse = mouseFromEvent( event );
+                picking_data.raycaster.setFromCamera( mouse, camera );
+                // Note: intersects is sorted by distance.
+                var intersects = picking_data.raycaster.intersectObjects( overlayMesh.verticesRims.children );
+                // If we don't pick anything, return null.
+                if( intersects.length == 0 ) {
+                    return null;
+                }
+                
+                // Get the picked object.
+                var picked = intersects[0];
+                // For some reason picked.point is way off.
+                var picked_point = picked.point.clone();
+                // var picked_point = picked.object.position.clone();
+                // We need the index of the picked vertex.
+                var picked_vertex_index = overlayMesh.verticesRims.children.indexOf( picked.object );
+                
+                // If this is a right-mouse button, reset its position and return.
+                if( event.button === 2 ) {
+                    setVertexIndexToPosition( picked_vertex_index, overlayMesh.originalPositions[ picked_vertex_index ] );
+                    // Turn off camera controls for the duration of the drag.
+                    controls.enabled = false;
+                    // Turn them back on 
+                    return { 'cleanup': function() { controls.enabled = true; } };
+                }
+                
+                // If we are here, set the vertex up for mouse drags.
+                
+                // Turn off camera controls.
+                controls.enabled = false;
+                // Set the mouse cursor to a move cursor.
+                container.style.cursor = 'move';
+                
+                // Move the plane to the position of the picked object.
+                // We intersect with this plane on mouse drag to find the new
+                // position for the picked vertex.
+                // picking_data.plane.position.copy( picked_point );
+                // Always set the plane's orientation to look at the camera.
+                // picking_data.plane.lookAt( camera.position );
+                
+                var down_world_pos = picked_point.clone();
+                var down_vertex_pos = overlayMesh.vertices.children[ picked_vertex_index ].position.clone();
+                
+                
+                var result = {};
+                result.drag = function( event ) {
+                    // Pick the picking plane.
+                    var mouse = mouseFromEvent( event );
+                    picking_data.raycaster.setFromCamera( mouse, camera );
+                    var intersects = picking_data.raycaster.intersectObject( picking_data.plane );
+                    if( intersects.length === 0 ) {
+                        console.error( "While dragging, picking with the plane returned no intersections." )
+                    }
+                    var picked = intersects[0];
+                    // For some reason picked.point is way off.
+                    var picked_point = picked.point.clone();
+                    // var picked_point = picked.object.position.clone();
+                    // Get the world space offset vector from the plane's original
+                    // position (the initial pick point) to its current position.
+                    // var offset = picked_point.clone().sub( picking_data.plane.position );
+                    var offset = picked_point.clone().sub( down_world_pos );
+                    // Update the plane's position and orientation.
+                    // picking_data.plane.position.copy( picked_point );
+                    // picking_data.plane.lookAt( camera.position );
+                    // Update the picked_vertex_index's position (vertices, verticesRims, and edges.geometry.vertices).
+                    var pos = overlayMesh.vertices.children[ picked_vertex_index ].position.copy( down_vertex_pos.clone().add( offset ) );
+                    overlayMesh.verticesRims.children[ picked_vertex_index ].position.copy( pos );
+                    if( 'edges' in overlayMesh ) {
+                        overlayMesh.edges.geometry.vertices[ picked_vertex_index ].copy( pos );
+                        overlayMesh.edges.geometry.verticesNeedUpdate = true;
+                    }
+                    
+                    // Call render() to refresh the view.
+                    render();
+                    
+                    // Update the weighted image.
+                    drawRecolorImage();
+                }
+                result.cleanup = function() {
+                    // Re-enable camera trackpad controls.
+                    controls.enabled = true;
+                    
+                    // Put the cursor back.
+                    container.style.cursor = 'auto';
+                    }
+                return result;
             }
             
             function initControls( camera ) {
@@ -731,6 +885,21 @@
                     camera.position.set( 1, 1, 1 );
                     camera.position.sub( controls.target ).setLength( targetToCameraLength ).add( controls.target );
                     } );
+                
+                
+                // We need these handlers for interacting with the 3D scene.
+                // As of now, that only consists of moving overlayMesh.vertices.
+                // TODO Q: Why can't I set these on renderer.domElement?
+                document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+                document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+                document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+                
+                // Prepare for mouse picking. We need a plane and a projector.
+                picking_data.plane = new THREE.Mesh( new THREE.PlaneGeometry( 5000, 5000, 8, 8 ), new THREE.MeshBasicMaterial( { color: 0xff0000 } ) );
+                // picking_data.plane.visible = false;
+                scene.add( picking_data.plane );
+                
+                picking_data.raycaster = new THREE.Raycaster();
             }
             
             function init3D() {
@@ -810,12 +979,15 @@
 
             function render() {
                 // HACK: Update overlay mesh vertices' white rims.
-                if( overlayMeshVerticesRims !== null ) {
-                    for( var i = 0; i < overlayMeshVerticesRims.children.length; ++i )
+                if( overlayMesh !== null && overlayMesh.verticesRims !== null ) {
+                    for( var i = 0; i < overlayMesh.verticesRims.children.length; ++i )
                     {
-                        overlayMeshVerticesRims.children[i].lookAt( camera.position );
+                        overlayMesh.verticesRims.children[i].lookAt( camera.position );
                     }
                 }
+                
+                // Always set the plane's orientation to look at the camera.
+                picking_data.plane.lookAt( camera.position );
                 
                 renderer.render( scene, camera );
                 stats.update();
