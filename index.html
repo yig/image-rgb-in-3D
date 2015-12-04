@@ -585,8 +585,10 @@
                     // Create a circle for each vertex
                     for( var i = 0; i < hull.vs.length; ++i ) {
                         var vert = hull.vs[i];
+                        var color = new THREE.Vector3( vert[0]/255., vert[1]/255., vert[2]/255. );
+                        color.clampScalar( 0., 1. );
                         var circleMaterial = new THREE.MeshBasicMaterial({
-                            color: new THREE.Color( vert[0]/255., vert[1]/255., vert[2]/255. )
+                            color: new THREE.Color( color.x, color.y, color.z )
                             });
                         
                         var radius = 5./255;
@@ -730,17 +732,31 @@
                 if( 'cleanup' in mouseActionHandler ) mouseActionHandler.cleanup();
                 mouseActionHandler = {};
                 
-                // If we have an overlay mesh and weights, pick an overlay mesh vertex.
-                mouseActionHandler = mouseHandlersForDownOnOverlayMeshVertex( event );
-                if( mouseActionHandler !== null ) return;
+                // A function to try the various things we might want to do on mouse down.
+                function chooseMouseHandlers( event ) {
+                    // If we have an overlay mesh and weights, pick an overlay mesh vertex.
+                    var handler = null;
+                    
+                    handler = mouseHandlersForDownOnOverlayMeshVertex( event );
+                    if( handler !== null ) return handler;
+                    
+                    // If no one handled it, use an empty handler.
+                    handler = {};
+                    
+                    return handler;
+                }
+                mouseActionHandler = chooseMouseHandlers( event );
                 
-                // If no one handled it, use an empty handler.
-                mouseActionHandler = {};
+                // Render at the end. Something might have happened.
+                render();
             }
             function onDocumentMouseMove( event ) {
                 // TODO Q: Should I call event.preventDefault() or are the controls doing that?
                 
                 if( 'drag' in mouseActionHandler ) mouseActionHandler.drag( event );
+                
+                // Render at the end. Something might have happened.
+                render();
             }
             function onDocumentMouseUp( event ) {
                 // TODO Q: Should I call event.preventDefault() or are the controls doing that?
@@ -750,8 +766,26 @@
                 
                 // Reset the mouse action handler.
                 mouseActionHandler = {};
+                
+                // Render at the end. Something might have happened.
+                render();
             }
             
+            function setVertexIndexToPosition( vertex_index, pos ) {
+                // Set the position of the vertex.
+                overlayMesh.vertices.children[ vertex_index ].position.copy( pos );
+                // Set the color of the vertex.
+                var color = pos.clone().clampScalar( 0., 1. );
+                overlayMesh.vertices.children[ vertex_index ].material.color.setRGB( color.x, color.y, color.z );
+                // Set the position of the highlight rim around vertex.
+                overlayMesh.verticesRims.children[ vertex_index ].position.copy( pos );
+                // Set the position of the vertex for the overlay mesh edges.
+                if( 'edges' in overlayMesh ) {
+                    overlayMesh.edges.geometry.vertices[ vertex_index ].copy( pos );
+                    overlayMesh.edges.geometry.verticesNeedUpdate = true;
+                }
+                
+            }
             function mouseHandlersForDownOnOverlayMeshVertex( event ) {
                 // Returns an object containing optional 'drag' and 'up' and 'cleanup' functions.
                 // Returns null if not handling.
@@ -771,18 +805,15 @@
                 
                 // Get the picked object.
                 var picked = intersects[0];
-                // For some reason picked.point is way off.
-                var picked_point = picked.point.clone();
-                // var picked_point = picked.object.position.clone();
                 // We need the index of the picked vertex.
                 var picked_vertex_index = overlayMesh.verticesRims.children.indexOf( picked.object );
                 
                 // If this is a right-mouse button, reset its position and return.
                 if( event.button === 2 ) {
                     setVertexIndexToPosition( picked_vertex_index, overlayMesh.originalPositions[ picked_vertex_index ] );
-                    // Turn off camera controls for the duration of the drag.
+                    // Turn off camera controls for the duration of this drag operation.
                     controls.enabled = false;
-                    // Turn them back on 
+                    // Turn them back on afterwards.
                     return { 'cleanup': function() { controls.enabled = true; } };
                 }
                 
@@ -796,11 +827,14 @@
                 // Move the plane to the position of the picked object.
                 // We intersect with this plane on mouse drag to find the new
                 // position for the picked vertex.
-                // picking_data.plane.position.copy( picked_point );
+                picking_data.plane.position.copy( picked.point );
                 // Always set the plane's orientation to look at the camera.
-                // picking_data.plane.lookAt( camera.position );
+                // UPDATE: We don't need to orient the plane. That happens during render().
+                // UPDATE 2: Since we change the plane's position, the plane's matrixWorld
+                //           needs to be updated, which also happens during render().
                 
-                var down_world_pos = picked_point.clone();
+                // Save the initial world-space positions of the picked point and the overlay mesh vertex.
+                var down_world_pos = picked.point.clone();
                 var down_vertex_pos = overlayMesh.vertices.children[ picked_vertex_index ].position.clone();
                 
                 
@@ -814,26 +848,12 @@
                         console.error( "While dragging, picking with the plane returned no intersections." )
                     }
                     var picked = intersects[0];
-                    // For some reason picked.point is way off.
-                    var picked_point = picked.point.clone();
-                    // var picked_point = picked.object.position.clone();
-                    // Get the world space offset vector from the plane's original
-                    // position (the initial pick point) to its current position.
-                    // var offset = picked_point.clone().sub( picking_data.plane.position );
-                    var offset = picked_point.clone().sub( down_world_pos );
-                    // Update the plane's position and orientation.
-                    // picking_data.plane.position.copy( picked_point );
-                    // picking_data.plane.lookAt( camera.position );
+                    // Get the world space offset vector from the initial pick point
+                    // to its current position.
+                    var offset = picked.point.clone().sub( down_world_pos );
                     // Update the picked_vertex_index's position (vertices, verticesRims, and edges.geometry.vertices).
-                    var pos = overlayMesh.vertices.children[ picked_vertex_index ].position.copy( down_vertex_pos.clone().add( offset ) );
-                    overlayMesh.verticesRims.children[ picked_vertex_index ].position.copy( pos );
-                    if( 'edges' in overlayMesh ) {
-                        overlayMesh.edges.geometry.vertices[ picked_vertex_index ].copy( pos );
-                        overlayMesh.edges.geometry.verticesNeedUpdate = true;
-                    }
-                    
-                    // Call render() to refresh the view.
-                    render();
+                    var pos = down_vertex_pos.clone().add( offset );
+                    setVertexIndexToPosition( picked_vertex_index, pos );
                     
                     // Update the weighted image.
                     drawRecolorImage();
@@ -848,9 +868,15 @@
                 return result;
             }
             
+            function getLookVector() {
+                // normalize( controls.target - camera.position )
+                return controls.target.clone().sub( camera.position ).normalize();
+            }
             function initControls( camera ) {
+                var origin = new THREE.Vector3( .5, .5, .5 );
+                
                 controls = new THREE.TrackballControls( camera );
-                controls.target.set( .5, .5, .5 );
+                controls.target.copy( origin );
                 
                 controls.rotateSpeed = 1.0;
                 controls.zoomSpeed = 1.2;
@@ -878,7 +904,7 @@
                 document.getElementById( 'look_from_white' ).addEventListener( 'click', function() {
                     // First reset the controls
                     controls.reset();
-                    controls.target.set( .5, .5, .5 );
+                    controls.target.copy( origin );
                     
                     var targetToCameraLength = camera.position.clone().sub( controls.target ).length();
                     
@@ -896,7 +922,7 @@
                 
                 // Prepare for mouse picking. We need a plane and a projector.
                 picking_data.plane = new THREE.Mesh( new THREE.PlaneGeometry( 5000, 5000, 8, 8 ), new THREE.MeshBasicMaterial( { color: 0xff0000 } ) );
-                // picking_data.plane.visible = false;
+                picking_data.plane.visible = false;
                 scene.add( picking_data.plane );
                 
                 picking_data.raycaster = new THREE.Raycaster();
@@ -987,7 +1013,9 @@
                 }
                 
                 // Always set the plane's orientation to look at the camera.
-                picking_data.plane.lookAt( camera.position );
+                // picking_data.plane.lookAt( camera.position );
+                // UPDATE: That is not necessarily the look vector.
+                picking_data.plane.quaternion.setFromUnitVectors( new THREE.Vector3( 0, 0, -1 ), getLookVector() );
                 
                 renderer.render( scene, camera );
                 stats.update();
