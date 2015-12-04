@@ -108,10 +108,13 @@
             // For picking
             var picking_data = {};
             
-            // True by default
+            // Screenshots mode is true by default
             var kScreenshots = true;
-            // unless a `screenshots` parameter is passed with the value 'no'.
-            // if( purl().param('screenshots') === 'no' ) kScreenshots = false;
+            // Unless a `screenshots` parameter is passed with the value 'no',
+            // as in: http://http://yig.github.io/image-rgb-in-3D/?screenshots=no
+            if( purl().param('screenshots') === 'no' ) kScreenshots = false;
+            // Unless a `screenshots` parameter is passed at all,
+            // as in: http://http://yig.github.io/image-rgb-in-3D/?screenshots
             // var kScreenshots = purl().param('screenshots') !== undefined;
             // Hide the Save PNG button if screenshots is not present.
             if( !kScreenshots ) {
@@ -298,6 +301,7 @@
                 {
                     var color = JSON.parse('[' + k + ']');
                     
+                    // Push color[0], color[1], ... to the end of result.
                     result.push.apply( result, color );
                 }
                 
@@ -306,11 +310,17 @@
                 return result;
             }
             
-            function createParticles()
+            function createParticles( params )
             {
+                if( params === undefined ) params = {};
+                // By default, only create particles for unique colors.
+                if( !( 'only_unique_pixels' in params ) ) params.only_unique_pixels = true;
+                // By default, clear the overlay mesh.
+                if( !( 'clear_overlay_mesh' in params ) ) params.clear_overlay_mesh = true;
+                
                 if( particleSystem !== undefined ) scene.remove( particleSystem );
                 // Also clear the overlay mesh if there is one.
-                clearOverlayMesh();
+                if( params.clear_overlay_mesh ) clearOverlayMesh();
                 
                 // Get the particles from the image's pixels.
                 // From: http://stackoverflow.com/questions/1041399/how-to-use-javascript-or-jquery-to-read-a-pixel-of-an-image
@@ -320,7 +330,11 @@
                 var ctx = canvas.getContext("2d");
                 ctx.drawImage( img, 0, 0, img.naturalWidth, img.naturalHeight );
                 // getImageData returns an RGBA byte array.
-                var pixels = uniquePixels( ctx.getImageData( 0, 0, canvas.width, canvas.height ).data );
+                var pixels = ctx.getImageData( 0, 0, canvas.width, canvas.height ).data;
+                if( params.only_unique_pixels ) {
+                    // Only take unique colors.
+                    pixels = uniquePixels( pixels );
+                }
                 
                 var particles = pixels.length / 4;
 
@@ -333,8 +347,7 @@
 
                 for ( var i = 0; i < particles; i += 1 ) {
 
-                    // colors
-
+                    // colors are also positions
                     var r = pixels[ 4*i + 0 ]/255.;
                     var g = pixels[ 4*i + 1 ]/255.;
                     var b = pixels[ 4*i + 2 ]/255.;
@@ -343,11 +356,9 @@
                     positions[ 3*i + 1 ] = g;
                     positions[ 3*i + 2 ] = b;
 
-                    color.setRGB( r, g, b );
-
-                    colors[ 3*i + 0 ] = color.r;
-                    colors[ 3*i + 1 ] = color.g;
-                    colors[ 3*i + 2 ] = color.b;
+                    colors[ 3*i + 0 ] = r;
+                    colors[ 3*i + 1 ] = g;
+                    colors[ 3*i + 2 ] = b;
 
                 }
                 
@@ -406,6 +417,22 @@
                 }
                 var imagedata = recolor_data.imagedata;
                 
+                // If our particleSystem has the right sized positions and colors,
+                // update them.
+                // They will have the wrong size if we are only drawing unique pixels.
+                function buffer_matches_or_null( buffer ) {
+                    if( buffer.itemSize == 3 && buffer.array.length / 3 == imagedata.width*imagedata.height ) {
+                        // It will need to be updated.
+                        buffer.needsUpdate = true;
+                        // Return its array.
+                        return buffer.array;
+                    } else {
+                        return null;
+                    }
+                }
+                var particleSystemPositions = buffer_matches_or_null( particleSystem.geometry.attributes['position'] );
+                var particleSystemColors = buffer_matches_or_null( particleSystem.geometry.attributes['color'] );
+                
                 // Iterate over every pixel and set it.
                 var total = [ 0., 0., 0. ];
                 for( var row = 0; row < imagedata.height; ++row ) {
@@ -423,8 +450,18 @@
                             // total += sum_i weight_i * color_i
                             for( var chan = 0; chan < 3; ++chan ) {
                                 total[chan] += w * colors[wi][chan];
+                                // Keep them unchanged (for debugging):
+                                // total[chan] = imagedata.data[ chan + 4*( col + imagedata.width*row ) ]/255.;
                             }
                         }
+                        
+                        // Update our particleSystem position buffer if it's the right size.
+                        if( particleSystemPositions !== null ) {
+                            for( var chan = 0; chan < 3; ++chan ) {
+                                particleSystemPositions[ chan + 3*( col + imagedata.width*row ) ] = total[chan];
+                            }
+                        }
+                        
                         // Scale by 255. and clamp the color.
                         for( var chan = 0; chan < 3; ++chan ) {
                             total[chan] = Math.min( 255, Math.max( 0, 255*total[chan] ) );
@@ -433,6 +470,14 @@
                         // Set the imagedata.
                         for( var chan = 0; chan < 3; ++chan ) {
                             imagedata.data[ chan + 4*( col + imagedata.width*row ) ] = total[chan];
+                        }
+                        
+                        // Update our particleSystem color buffer if it's the right size.
+                        // (We do this here, after clamping.)
+                        if( particleSystemColors !== null ) {
+                            for( var chan = 0; chan < 3; ++chan ) {
+                                particleSystemColors[ chan + 3*( col + imagedata.width*row ) ] = total[chan]/255.;
+                            }
                         }
                     }
                 }
@@ -568,7 +613,7 @@
                     var edge_material = new THREE.MeshBasicMaterial({
                         color: 0xFFFFFF,
                         wireframe: true,
-                        wireframeLinewidth: 10
+                        wireframeLinewidth: 4
                         });
                     
                     overlayMesh.edges = new THREE.Mesh( geometry, edge_material );
@@ -694,6 +739,12 @@
                     // Open in a new window.
                     window.open( dataURL );
                     };
+                
+                // Re-create the particles.
+                // By default, we only create particles for unique colors.
+                // Now, we want particles for all pixels, because two pixels
+                // with the same color may have different weights.
+                createParticles( { 'only_unique_pixels': false, 'clear_overlay_mesh': false } );
             }
             function testLoadWeights()
             {
@@ -958,7 +1009,9 @@
                 // renderer.setClearColor( scene.fog.color );
                 renderer.setClearColor( new THREE.Color( '#888888' ) );
                 // I tried setting this to 3., and the canvas appears stretched.
-                renderer.setPixelRatio( kScreenshots ? 2. : window.devicePixelRatio );
+                // This next line always draws high res.
+                // renderer.setPixelRatio( kScreenshots ? 2. : window.devicePixelRatio );
+                renderer.setPixelRatio( window.devicePixelRatio );
                 renderer.setSize( window.innerWidth, window.innerHeight );
 
                 container.appendChild( renderer.domElement );
