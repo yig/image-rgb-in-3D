@@ -75,7 +75,9 @@
             <div class="widget"><label>Rotation has intertia:<input type="checkbox" id="intertia" /></label></div>
             <!-- <div class="widget"><button id="look_from_white">Look from white</button></div> -->
             <div><a href="#" id="look_from_white">Look from white</a></div>
+            <div id="saveCamera"><a href="#" onclick="saveCamera()">Save Camera</a></div>
             <div id="saveScreenshot"><a href="#" onclick="saveScreenshot()">Save PNG</a></div>
+            <div id="saveOverlayMesh" style="display: none;"><a href="#" onclick="saveOverlayMesh()">Save mesh JSON</a></div>
         </div>
 
         <script src="js/three.js"></script>
@@ -85,10 +87,8 @@
         <script src="js/libs/stats.min.js"></script>
         <script src="js/purl.js"></script>
         
-        <!--
         <script src="js/Blob.js"></script>
         <script src="js/FileSaver.js"></script>
-        -->
 
         <script>
             if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
@@ -194,10 +194,13 @@
                         // In fact, we can pass it to multiple functions if it
                         // satisfies multiple loaders' criteria.
                         if( loadableOverlayMesh( parsed ) ) {
-                            loadOverlayMesh( parsed );
+                            loadOverlayMesh( parsed, file.name );
                         }
-                        if( 'weights' in parsed ) {
+                        if( loadableWeights( parsed ) ) {
                             loadWeights( parsed );
+                        }
+                        if( loadableCamera( parsed ) ) {
+                            loadCamera( parsed );
                         }
                         };
                     // read the data as a binary string.
@@ -226,9 +229,9 @@
                 var dataURL = renderer.domElement.toDataURL( kMIMEType );
                 
                 // Open in a new window.
-                window.open( dataURL );
+                // window.open( dataURL );
                 
-                /*
+                
                 // Save to disk.
                 // From: http://stackoverflow.com/questions/17332071/trying-to-save-canvas-png-data-url-to-disk-with-html5-filesystem-but-when-i-ret
                 var data = atob( dataURL.replace(/^.*?base64,/, '') );
@@ -242,8 +245,49 @@
                 // https://github.com/eligrey/Blob.js
                 // https://github.com/eligrey/FileSaver.js/
                 var blob = new Blob( [ asArray.buffer ], { type: kMIMEType } );
-                saveAs( blob, "canvas.png" );
-                */
+                var savename = document.getElementById('img_name').innerHTML;
+                saveAs( blob, savename + "-screenshot.png" );
+                
+                saveCamera( savename + "-screenshot-camera.js" );
+            }
+            function saveCamera( filename ) {
+                if( filename === undefined ) filename = "camera.js";
+                
+                var data = saveCameraJSON();
+                
+                // Now save data as JSON.
+                var blob = new Blob([ JSON.stringify( data ) ], {type: "application/json"});
+                saveAs( blob, filename );
+            }
+            function saveCameraJSON() {
+                var data = {};
+                data.position = [ camera.position.x, camera.position.y, camera.position.z ];
+                data.up = [ camera.up.x, camera.up.y, camera.up.z ];
+                data.quaternion = [ camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w ];
+                data.target = [ controls.target.x, controls.target.y, controls.target.z ];
+                // Camera data lives inside a 'camera' key.
+                return { 'camera': data };
+            }
+            function loadCamera( data ) {
+                // Camera data lives inside a 'camera' key.
+                data = data.camera;
+                
+                var pos = data.position;
+                var quat = data.quaternion;
+                var up = data.up;
+                var target = data.target;
+                
+                // controls.target.set( target[0], target[1], target[2] );
+                controls.target.set.apply( controls.target, target );
+                camera.position.set.apply( camera.position, pos );
+                camera.up.set.apply( camera.up, up );
+                camera.quaternion.set.apply( camera.quaternion, quat );
+                
+                render();
+            }
+            function loadableCamera( data ) {
+                // We can load a camera if there is a 'camera' entry.
+                return 'camera' in data;
             }
             
             function uniquePixels( data, skip_transparent )
@@ -553,16 +597,25 @@
                 
                 overlayMesh = null;
                 
+                // Hide the save button.
+                document.getElementById('saveOverlayMesh').style.display = 'none';
+                
                 clearWeights();
             }
-            function loadOverlayMesh( hull )
+            function loadOverlayMesh( hull, filename )
             {
                 console.log( "loadOverlayMesh( ... ):" );
-                console.log( hull );
+                console.log( "hull:", hull );
+                console.log( "filename:", filename );
+                
+                if( filename === undefined ) {
+                    filename = "overlayMesh-unnamed.js";
+                }
                 
                 clearOverlayMesh();
                 // Create an empty object.
                 overlayMesh = {};
+                overlayMesh.filename = filename;
                 
                 /// Create the overlayMesh.edges
                 if( hull.faces !== undefined && hull.faces.length > 0 ) {
@@ -661,6 +714,11 @@
                 
                 render();
                 
+                
+                // Show the save button.
+                document.getElementById('saveOverlayMesh').style.display = 'block';
+                
+                
                 // For debugging, drop a weights file with uniform weights.
                 // testLoadWeights();
             }
@@ -668,6 +726,59 @@
             {
                 // We can load an overlay mesh from `hull` if it contains 'faces'.
                 return 'faces' in hull;
+            }
+            function saveOverlayMeshJSON() {
+                if( overlayMesh === null ) {
+                    console.error( "saveOverlayMeshJSON(): There is no overlay mesh to save." );
+                    return null;
+                }
+                
+                // Create the dictionary.
+                var data = {};
+                
+                // Add vertices to it.
+                data.vs = [];
+                for( var vertex_index = 0; vertex_index < overlayMesh.vertices.children.length; ++vertex_index ) {
+                    var pos = overlayMesh.vertices.children[ vertex_index ].position;
+                    data.vs.push( [ pos.x*255., pos.y*255., pos.z*255. ] );
+                }
+                
+                // Add faces if we have them.
+                if( overlayMesh.edges !== null ) {
+                    data.faces = [];
+                    
+                    var geom = overlayMesh.edges.geometry;
+                    for( var face_index = 0; face_index < geom.faces.length; ++face_index ) {
+                        var face = geom.faces[ face_index ];
+                        face = [ face.a, face.b, face.c ];
+                        
+                        /*
+                        // Smart format (face contains vertex indices).
+                        data.faces.push( face );
+                        */
+                        
+                        // Dumb format (face contains vertex positions).
+                        for( var face_vertex_index = 0; face_vertex_index < face.length; ++face_vertex_index ) {
+                            var vertex_index = face[ face_vertex_index ];
+                            // Grab vertices from data.vs, because they have already been
+                            // converted to an array and multiplied by 255.
+                            face[ face_vertex_index ] = data.vs[ vertex_index ];
+                        }
+                        data.faces.push( face );
+                    }
+                }
+                
+                return data;
+            }
+            function saveOverlayMesh()
+            {
+                var data = saveOverlayMeshJSON();
+                // saveOverlayMeshJSON() will return null if there is nothing to save.
+                if( data === null ) return;
+                
+                // Now save data as JSON.
+                var blob = new Blob([ JSON.stringify( data ) ], {type: "application/json"});
+                saveAs( blob, overlayMesh.filename.replace( /\.js$/, "" ) + "-modified.js" );
             }
             
             function clearWeights()
