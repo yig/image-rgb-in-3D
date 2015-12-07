@@ -75,9 +75,8 @@
             <div class="widget"><label>Rotation has intertia:<input type="checkbox" id="intertia" /></label></div>
             <!-- <div class="widget"><button id="look_from_white">Look from white</button></div> -->
             <div><a href="#" id="look_from_white">Look from white</a></div>
-            <div id="saveCamera"><a href="#" onclick="saveCamera()">Save Camera</a></div>
-            <div id="saveScreenshot"><a href="#" onclick="saveScreenshot()">Save PNG</a></div>
-            <div id="saveOverlayMesh" style="display: none;"><a href="#" onclick="saveOverlayMesh()">Save mesh JSON</a></div>
+            <div id="saveAll"><a href="#" onclick="saveAll()">Save Everything</a></div>
+            <div id="saveCamera"><a href="#" onclick="saveCamera()">Save Camera Only</a></div>
         </div>
 
         <script src="js/three.js"></script>
@@ -88,8 +87,16 @@
         <script src="js/purl.js"></script>
         
         <script src="js/Blob.js"></script>
-        <script src="js/FileSaver.js"></script>
-
+        <script src="js/canvas-toBlob.js"></script>
+        <!--
+            // This appears not to support multiple calls to saveAs()
+            // without an async callback of some sort.
+            // Issue: https://github.com/eligrey/FileSaver.js/issues/165
+            // Fork with fix: https://github.com/Hypercubed/FileSaver.js/tree/patch-1
+            // I wrote my own (see below).
+            <script src="js/FileSaver.js"></script>
+        -->
+        
         <script>
             if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
@@ -218,42 +225,124 @@
             document.ondragover = function( event ) { event.preventDefault(); }
             document.ondrop = function( event ) { event.preventDefault(); loadFile( event.dataTransfer.files[0] ); }
             
-            function saveScreenshot()
+            function blobPNGFromCanvas( canvas, callback ) {
+                /*
+                Creates a Blob `blob` from the canvas object `canvas` and calls the function
+                `callback( blob )` afterwards.
+                */
+                
+                var kMIMEType = "image/png";
+                var blob = canvas.toBlobHD( callback, kMIMEType );
+            }
+            function canvasFromImage( img ) {
+                
+                var canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                var ctx = canvas.getContext("2d");
+                ctx.drawImage( img, 0, 0, img.naturalWidth, img.naturalHeight );
+                
+                return canvas;
+            }
+            function basenameForSave() {
+                // The name of the loaded image.
+                return document.getElementById('img_name').innerHTML;
+            }
+            function saveScreenshot( basename )
             {
-                if( !kScreenshots )
-                {
+                if( basename === undefined ) basename = basenameForSave();
+                
+                if( !kScreenshots ) {
                     console.log( "This probably won't work. Refresh the page with ?screenshots" );
                 }
                 
-                var kMIMEType = "image/png";
-                var dataURL = renderer.domElement.toDataURL( kMIMEType );
-                
-                // Open in a new window.
+                /// Open in a new window.
+                // var kMIMEType = "image/png";
+                // var dataURL = renderer.domElement.toDataURL( kMIMEType );
                 // window.open( dataURL );
                 
+                // Make the filename.
+                var filename = "screenshot.png";
+                if( basename.length > 0 ) filename = basename + "-" + filename;
                 
-                // Save to disk.
-                // From: http://stackoverflow.com/questions/17332071/trying-to-save-canvas-png-data-url-to-disk-with-html5-filesystem-but-when-i-ret
-                var data = atob( dataURL.replace(/^.*?base64,/, '') );
-                var asArray = new Uint8Array( data.length );
-                for( var i = 0, len = data.length; i < len; ++i ) {
-                    asArray[i] = data.charCodeAt(i);    
+                blobPNGFromCanvas(
+                    renderer.domElement,
+                    function( blob ) { saveAs( blob, filename ); }
+                    );
+            }
+            function saveRecolorImage( basename ) {
+                if( basename === undefined ) basename = "";
+                
+                // I don't know what the default size of an image is.
+                // Check recolor_data
+                if( recolor_data === null ) {
+                    // We don't have a recolor image. There's nothing to save.
+                    return;
                 }
                 
-                // This uses Blob and FileSaver.
-                // For old browsers, use:
-                // https://github.com/eligrey/Blob.js
-                // https://github.com/eligrey/FileSaver.js/
-                var blob = new Blob( [ asArray.buffer ], { type: kMIMEType } );
-                var savename = document.getElementById('img_name').innerHTML;
-                saveAs( blob, savename + "-screenshot.png" );
+                // Make the filename.
+                var filename = "recolor.png";
+                if( basename.length > 0 ) filename = basename + "-" + filename;
                 
-                saveCamera( savename + "-screenshot-camera.js" );
+                var recolor = document.getElementById('image_recolor');
+                blobPNGFromCanvas(
+                    recolor,
+                    function( blob ) { saveAs( blob, filename ); }
+                    );
             }
-            function saveCamera( filename ) {
-                if( filename === undefined ) filename = "camera.js";
+            // From Gist: https://gist.github.com/yig/aeeb1ee67a13bea98f3d
+            function saveAs( blob, name ) {
+                "use strict";
+                
+                // Inspired by Syntax: http://stackoverflow.com/questions/23451726/saving-binary-data-as-file-using-javascript-from-a-browser/23451803#23451803
+                // Initially created to work around a bug in eligray/FileSaver.js
+                // which prevented saving multiple files
+                // (Issue 165: https://github.com/eligrey/FileSaver.js/issues/165 ).
+                
+                // Create a hidden `a` element.
+                var a = document.createElement("a");
+                document.body.appendChild(a);
+                a.style.cssText = "display: none";
+                
+                // createObjectURL() will leak memory.
+                var url = window.URL.createObjectURL(blob);
+                a.href = url;
+                a.download = name;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.parentNode.removeChild(a);
+            }
+            function saveAll() {
+                // Save:
+                // 1. a screenshot of the 3D view
+                // 2. the camera
+                // 3. the overlay mesh
+                // 4. the recolored image
+                
+                // The name of the loaded image.
+                var basename = basenameForSave();
+                
+                
+                // 1.
+                saveScreenshot( basename );
+                
+                // 2.
+                saveCamera( basename );
+                
+                // 3.
+                saveOverlayMesh( basename );
+                
+                // 4.
+                saveRecolorImage( basename );
+            }
+            function saveCamera( basename ) {
+                if( basename === undefined ) basename = "";
                 
                 var data = saveCameraJSON();
+                
+                // Make the filename.
+                var filename = "camera.js";
+                if( basename.length > 0 ) filename = basename + "-" + filename;
                 
                 // Now save data as JSON.
                 var blob = new Blob([ JSON.stringify( data ) ], {type: "application/json"});
@@ -597,9 +686,6 @@
                 
                 overlayMesh = null;
                 
-                // Hide the save button.
-                document.getElementById('saveOverlayMesh').style.display = 'none';
-                
                 clearWeights();
             }
             function loadOverlayMesh( hull, filename )
@@ -715,12 +801,8 @@
                 render();
                 
                 
-                // Show the save button.
-                document.getElementById('saveOverlayMesh').style.display = 'block';
-                
-                
                 // For debugging, drop a weights file with uniform weights.
-                // testLoadWeights();
+                testLoadWeights();
             }
             function loadableOverlayMesh( hull )
             {
@@ -770,15 +852,21 @@
                 
                 return data;
             }
-            function saveOverlayMesh()
+            function saveOverlayMesh( basename )
             {
+                if( basename === undefined ) basename = '';
+                
                 var data = saveOverlayMeshJSON();
                 // saveOverlayMeshJSON() will return null if there is nothing to save.
                 if( data === null ) return;
                 
+                // Make the output filename.
+                var filename = overlayMesh.filename.replace( /\.js$/, "" ) + "-modified.js";
+                if( basename.length > 0 ) filename = basename + "-" + filename;
+                
                 // Now save data as JSON.
                 var blob = new Blob([ JSON.stringify( data ) ], {type: "application/json"});
-                saveAs( blob, overlayMesh.filename.replace( /\.js$/, "" ) + "-modified.js" );
+                saveAs( blob, filename );
             }
             
             function clearWeights()
