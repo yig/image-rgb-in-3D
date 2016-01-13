@@ -807,7 +807,7 @@
             function loadableOverlayMesh( hull )
             {
                 // We can load an overlay mesh from `hull` if it contains 'faces'.
-                return 'faces' in hull;
+                return 'vs' in hull;
             }
             function saveOverlayMeshJSON() {
                 if( overlayMesh === null ) {
