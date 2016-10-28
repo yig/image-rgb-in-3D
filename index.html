@@ -131,6 +131,10 @@
             console.log( "purl 'screenshots': " + purl().param('screenshots') );
             console.log( "kScreenshots: " + kScreenshots );
             
+            // Whether to apply gamma correction to convert input data to linear RGB.
+            var kGammaCorrect = false;
+            if( purl().param('gamma') !== undefined ) kGammaCorrect = true;
+            
             init3D();
             if( purl().param('image') !== undefined )
             {
@@ -382,6 +386,28 @@
                 return 'camera' in data;
             }
             
+            function sRGB_to_LinearRGB( srgb ) {
+                if( !kGammaCorrect ) return srgb;
+                
+                var rgb = [ 0, 0, 0 ];
+                
+                // Following: https://en.wikipedia.org/wiki/SRGB
+                var thresh = 0.04045;
+                var a = 0.055;
+                
+                for( var i = 0; i < 3; ++i ) {
+                    var val = srgb[i];
+                    
+                    rgb[i] =
+                        val <= thresh
+                        ? val / 12.92
+                        : Math.pow( ( val + a ) / ( 1 + a ), 2.4 )
+                        ;
+                }
+                
+                return rgb;
+            }
+            
             function uniquePixels( data, skip_transparent )
             {
                 if( skip_transparent === undefined ) skip_transparent = true;
@@ -527,9 +553,11 @@
                     var g = pixels[ 4*i + 1 ]/255.;
                     var b = pixels[ 4*i + 2 ]/255.;
                     
-                    positions[ 3*i + 0 ] = r;
-                    positions[ 3*i + 1 ] = g;
-                    positions[ 3*i + 2 ] = b;
+                    var linear_rgb = sRGB_to_LinearRGB( [ r,g,b ] );
+                    
+                    positions[ 3*i + 0 ] = linear_rgb[0];
+                    positions[ 3*i + 1 ] = linear_rgb[1];
+                    positions[ 3*i + 2 ] = linear_rgb[2];
 
                     colors[ 3*i + 0 ] = r;
                     colors[ 3*i + 1 ] = g;
@@ -586,9 +614,11 @@
                     var g = float_colors[i][1];
                     var b = float_colors[i][2];
                     
-                    positions[ 3*i + 0 ] = r;
-                    positions[ 3*i + 1 ] = g;
-                    positions[ 3*i + 2 ] = b;
+                    var linear_rgb = sRGB_to_LinearRGB( [r,g,b] );
+                    
+                    positions[ 3*i + 0 ] = linear_rgb[0];
+                    positions[ 3*i + 1 ] = linear_rgb[1];
+                    positions[ 3*i + 2 ] = linear_rgb[2];
 
                     colors[ 3*i + 0 ] = r;
                     colors[ 3*i + 1 ] = g;
@@ -832,7 +862,10 @@
                     // Copy vertices
                     for( var i = 0; i < hull.vs.length; ++i ) {
                         var vert = hull.vs[i];
-                        geometry.vertices.push( new THREE.Vector3( vert[0]/255., vert[1]/255., vert[2]/255. ) );
+                        
+                        var linear_rgb = sRGB_to_LinearRGB( [ vert[0]/255., vert[1]/255., vert[2]/255. ] );
+                        
+                        geometry.vertices.push( new THREE.Vector3( linear_rgb[0], linear_rgb[1], linear_rgb[2] ) );
                     }
                     // Copy faces
                     for( var i = 0; i < hull.faces.length; ++i ) {
@@ -874,7 +907,8 @@
                         var segments = 32;
                         var circleGeometry = new THREE.SphereGeometry( radius, segments, segments );
                         var circle = new THREE.Mesh( circleGeometry, circleMaterial );
-                        circle.position.set( vert[0]/255., vert[1]/255., vert[2]/255. );
+                        var linear_rgb = sRGB_to_LinearRGB( [ vert[0]/255., vert[1]/255., vert[2]/255. ] );
+                        circle.position.set( linear_rgb[0], linear_rgb[1], linear_rgb[2] );
                         // Make a copy of the position to have in case we later move it.
                         overlayMesh.originalPositions.push( circle.position.clone() );
                         
