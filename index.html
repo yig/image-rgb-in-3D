@@ -918,7 +918,7 @@
                         // HACK: A white rim.
                         circleGeometry = new THREE.CircleGeometry( radius*1.2, segments );
                         circle = new THREE.Mesh( circleGeometry, new THREE.MeshBasicMaterial({ color: 0xFFFFFF }) );
-                        circle.position.set( vert[0]/255., vert[1]/255., vert[2]/255. );
+                        circle.position.set( linear_rgb[0], linear_rgb[1], linear_rgb[2] );
                         
                         overlayMesh.verticesRims.add( circle );
                     }
