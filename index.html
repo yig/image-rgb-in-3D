@@ -804,9 +804,9 @@
             function clearOverlayMesh()
             {
                 if( overlayMesh !== null ) {
-                    if( overlayMesh.edges !== null ) scene.remove( overlayMesh.edges );
-                    if( overlayMesh.vertices !== null ) scene.remove( overlayMesh.vertices );
-                    if( overlayMesh.verticesRims !== null ) scene.remove( overlayMesh.verticesRims );
+                    if( overlayMesh.edges !== undefined ) scene.remove( overlayMesh.edges );
+                    if( overlayMesh.vertices !== undefined ) scene.remove( overlayMesh.vertices );
+                    if( overlayMesh.verticesRims !== undefined ) scene.remove( overlayMesh.verticesRims );
                 }
                 
                 overlayMesh = null;
@@ -955,7 +955,7 @@
                 }
                 
                 // Add faces if we have them.
-                if( overlayMesh.edges !== null ) {
+                if( overlayMesh.edges !== undefined ) {
                     data.faces = [];
                     
                     var geom = overlayMesh.edges.geometry;
