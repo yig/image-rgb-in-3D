@@ -981,6 +981,36 @@
                 
                 return data;
             }
+            function saveOverlayMeshPalette( basename )
+            {
+                if( overlayMesh === null ) {
+                    console.error( "saveOverlayMeshPalette(): There is no overlay mesh to save." );
+                    return null;
+                }
+                
+                // Create the dictionary.
+                var kEdgePixels = 50;
+                
+                var canvas = document.createElement('canvas');
+                canvas.width = kEdgePixels*overlayMesh.vertices.children.length;
+                canvas.height = kEdgePixels;
+                var ctx = canvas.getContext("2d");
+                // Add colors to it.
+                for( var vertex_index = 0; vertex_index < overlayMesh.vertices.children.length; ++vertex_index ) {
+                    var pos = overlayMesh.vertices.children[ vertex_index ].position;
+                    var color = [ pos.x*255., pos.y*255., pos.z*255. ];
+                    for( var i = 0; i < color.length; ++i ) color[i] = String( parseInt( Math.max( 0, Math.min( 255, color[i] ) ) ) );
+                    ctx.fillStyle = "rgb( " + color[0] + ", " + color[1] + ", " + color[2] + " )";
+                    ctx.fillRect( vertex_index*kEdgePixels, 0, kEdgePixels, kEdgePixels );
+                }
+                
+                var filename = overlayMesh.filename.replace( /\.js$/, "" ) + "-modified.png";
+                if( basename !== undefined && basename.length > 0 ) filename = basename + "-" + filename;
+                blobPNGFromCanvas(
+                    canvas,
+                    function( blob ) { saveAs( blob, filename ); }
+                );
+            }
             function saveOverlayMesh( basename )
             {
                 if( basename === undefined ) basename = '';
@@ -996,6 +1026,8 @@
                 // Now save data as JSON.
                 var blob = new Blob([ JSON.stringify( data ) ], {type: "application/json"});
                 saveAs( blob, filename );
+                
+                saveOverlayMeshPalette( basename );
             }
             
             function clearWeights()
