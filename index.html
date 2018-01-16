@@ -823,10 +823,16 @@
                     filename = "overlayMesh-unnamed.js";
                 }
                 
-                clearOverlayMesh();
-                // Create an empty object.
-                overlayMesh = {};
-                overlayMesh.filename = filename;
+                // Don't clear if the JSON says not to.
+                if( hull.clear === undefined || hull.clear ) {
+                    clearOverlayMesh();
+                }
+                // Create an overlayMesh object if we don't have one.
+                if( overlayMesh === null ) {
+                    // Create an empty object.
+                    overlayMesh = {};
+                    overlayMesh.filename = filename;
+                }
                 
                 /// Create the overlayMesh.edges
                 if( hull.faces !== undefined && hull.faces.length > 0 ) {
@@ -890,16 +896,23 @@
                 
                 /// Create the overlayMesh.vertices
                 if( hull.vs.length > 0 ) {
-                    overlayMesh.vertices = new THREE.Object3D();
-                    overlayMesh.verticesRims = new THREE.Object3D();
-                    // We will keep a copy of the original position in case we later move them.
-                    overlayMesh.originalPositions = [];
+                    if( overlayMesh.vertices === undefined ) {
+                        overlayMesh.vertices = new THREE.Object3D();
+                        overlayMesh.verticesRims = new THREE.Object3D();
+                        // We will keep a copy of the original position in case we later move them.
+                        overlayMesh.originalPositions = [];
+                        
+                        scene.add( overlayMesh.vertices );
+                        scene.add( overlayMesh.verticesRims );
+                    }
                     // Create a circle for each vertex
-                    var radius = 5./255;
+                    var radius = hull.vertex_radius || 5./255;
+                    var radiusRim = hull.vertex_rim_radius || radius*1.2;
+                    var colorRim = hull.vertex_rim_color || 0xFFFFFF;
                     var segments = 32;
                     var circleGeometry = new THREE.SphereGeometry( radius, segments, segments );
-                    var circleRimGeometry = new THREE.CircleGeometry( radius*1.2, segments );
-                    var circleRimMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF })
+                    var circleRimGeometry = new THREE.CircleGeometry( radiusRim, segments );
+                    var circleRimMaterial = new THREE.MeshBasicMaterial({ color: colorRim });
                     for( var i = 0; i < hull.vs.length; ++i ) {
                         var vert = hull.vs[i];
                         var color = new THREE.Vector3( vert[0]/255., vert[1]/255., vert[2]/255. );
@@ -921,8 +934,6 @@
                         circle.position.set( linear_rgb[0], linear_rgb[1], linear_rgb[2] );
                         overlayMesh.verticesRims.add( circle );
                     }
-                    scene.add( overlayMesh.vertices );
-                    scene.add( overlayMesh.verticesRims );
                 }
                 
                 
