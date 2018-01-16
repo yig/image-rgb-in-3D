@@ -895,6 +895,11 @@
                     // We will keep a copy of the original position in case we later move them.
                     overlayMesh.originalPositions = [];
                     // Create a circle for each vertex
+                    var radius = 5./255;
+                    var segments = 32;
+                    var circleGeometry = new THREE.SphereGeometry( radius, segments, segments );
+                    var circleRimGeometry = new THREE.CircleGeometry( radius*1.2, segments );
+                    var circleRimMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF })
                     for( var i = 0; i < hull.vs.length; ++i ) {
                         var vert = hull.vs[i];
                         var color = new THREE.Vector3( vert[0]/255., vert[1]/255., vert[2]/255. );
@@ -903,9 +908,6 @@
                             color: new THREE.Color( color.x, color.y, color.z )
                             });
                         
-                        var radius = 5./255;
-                        var segments = 32;
-                        var circleGeometry = new THREE.SphereGeometry( radius, segments, segments );
                         var circle = new THREE.Mesh( circleGeometry, circleMaterial );
                         var linear_rgb = sRGB_to_LinearRGB( [ vert[0]/255., vert[1]/255., vert[2]/255. ] );
                         circle.position.set( linear_rgb[0], linear_rgb[1], linear_rgb[2] );
@@ -914,12 +916,9 @@
                         
                         overlayMesh.vertices.add( circle );
                         
-                        
                         // HACK: A white rim.
-                        circleGeometry = new THREE.CircleGeometry( radius*1.2, segments );
-                        circle = new THREE.Mesh( circleGeometry, new THREE.MeshBasicMaterial({ color: 0xFFFFFF }) );
+                        circle = new THREE.Mesh( circleRimGeometry, circleRimMaterial );
                         circle.position.set( linear_rgb[0], linear_rgb[1], linear_rgb[2] );
-                        
                         overlayMesh.verticesRims.add( circle );
                     }
                     scene.add( overlayMesh.vertices );
