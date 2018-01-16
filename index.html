@@ -908,7 +908,7 @@
                     // Create a circle for each vertex
                     var radius = hull.vertex_radius || 5./255;
                     var radiusRim = hull.vertex_rim_radius || radius*1.2;
-                    var colorRim = hull.vertex_rim_color || 0xFFFFFF;
+                    var colorRim = new THREE.Color( hull.vertex_rim_color || 0xFFFFFF );
                     var segments = 32;
                     var circleGeometry = new THREE.SphereGeometry( radius, segments, segments );
                     var circleRimGeometry = new THREE.CircleGeometry( radiusRim, segments );
