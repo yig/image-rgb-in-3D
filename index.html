@@ -112,16 +112,24 @@
             var weights = null;
             var recolor_data = null;
             
+            var socket = null;
+            
             // For picking
             var picking_data = {};
+            
+            // Listening with a remote control websocket is off by default.
+            var kWebsocket = null;
+            // Unless a `websocket` parameter is passed with a port number,
+            // as in: http://yig.github.io/image-rgb-in-3D/?websocket=7777
+            if( purl().param('websocket') !== undefined ) kWebsocket = parseInt( purl().param('websocket') );
             
             // Screenshots mode is true by default
             var kScreenshots = true;
             // Unless a `screenshots` parameter is passed with the value 'no',
-            // as in: http://http://yig.github.io/image-rgb-in-3D/?screenshots=no
+            // as in: http://yig.github.io/image-rgb-in-3D/?screenshots=no
             if( purl().param('screenshots') === 'no' ) kScreenshots = false;
             // Unless a `screenshots` parameter is passed at all,
-            // as in: http://http://yig.github.io/image-rgb-in-3D/?screenshots
+            // as in: http://yig.github.io/image-rgb-in-3D/?screenshots
             // var kScreenshots = purl().param('screenshots') !== undefined;
             // Hide the Save PNG button if screenshots is not present.
             if( !kScreenshots ) {
@@ -1116,6 +1124,26 @@
                 // Now, we want particles for all pixels, because two pixels
                 // with the same color may have different weights.
                 createParticles( { 'only_unique_pixels': false, 'clear_overlay_mesh': false } );
+                
+                if( kWebsocket !== null ) {
+                    var websocket_address = 'ws://localhost:' + kWebsocket + '/''
+                    console.log("Attempting to connect to a websocket server:", websocket_address );
+                    socket = new WebSocket( websocket_address );
+                    socket.onopen = function(event) { console.log("WebSocket connection successfully opened."); }
+                    socket.onmessage = function(event) {
+                        console.log( 'Received message:' );
+                        console.log( event.data );
+                        
+                        var payload = JSON.parse( event.data );
+                        for( var picked_vertex_index in payload )
+                        {
+                            var pos = payload[picked_vertex_index];
+                            setVertexIndexToPosition( picked_vertex_index, new THREE.Vector3( pos[0], pos[1], pos[2] ) );
+                        }
+                        // Update the weighted image.
+                        drawRecolorImage();
+                    };
+                }
             }
             function testLoadWeights()
             {
@@ -1194,6 +1222,11 @@
             }
             
             function setVertexIndexToPosition( vertex_index, pos ) {
+                if( vertex_index >= overlayMesh.vertices.children.length ) {
+                    console.error( "setVertexIndexToPosition() with an invalid vertex index:", vertex_index );
+                    return;
+                }
+                
                 // Set the position of the vertex.
                 overlayMesh.vertices.children[ vertex_index ].position.copy( pos );
                 // Set the color of the vertex.

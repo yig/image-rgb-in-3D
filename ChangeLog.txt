@@ -1,3 +1,13 @@
+## 2019-06-20
+
+You can now pass a flag `websocket=PORT` and, if weights are dropped, it will connect to a websocket on localhost with that port and listen for palette changing commands as a JSON dictionary: `{ palette_vertex_index: [ r, g, b ] }`. For example, browse to
+http://yig.github.io/image-rgb-in-3D/?websocket=7777
+and run
+
+    websocketd --port=7777 python -u paletteferret.py
+
+Drag-and-drop an image, convex hull vertices, and then weights from https://cragl.cs.gmu.edu/singleimage/
+
 ## 2018-01-15
 
 You can now drag additional overlay vertices. For example, dragging the following will add a few smaller, black-rimmed vertices:
@@ -10,6 +20,22 @@ You can now drag additional overlay vertices. For example, dragging the followin
 `"clear": true` means to also show these vertices rather than clearing the old ones.
 The other properties control the size of the color, the size of its rim, and the color of its rim.
 
+## 2016-09-17
+
+You can drop a json file onto the window containing an element "float_colors" which is an array of colors, where each color is a length-3 array of numbers between 0 and 1 for RGB. For example:
+
+{
+	"float_colors": [
+		[0.5, 1.5, 0.0],
+		[0.5188673047844671, 1.4998219965624733, 0.001001001001001001],
+		[0.5377278926787172, 1.49928804962034, 0.002002002002002002]
+		]
+}
+
+There is a flag `gamma`. If present, the input colors will be converted from sRGB to Linear RGB.
+
+http://yig.github.io/image-rgb-in-3D/?gamma
+
 ## 2015-12-05
 
 You can save the modified overlay mesh.
@@ -21,7 +47,7 @@ Screenshots are saved to the downloads folder along with the camera orientation.
 
 ## 2015-12-03
 
-Now, you can drop a JSON file on it with weights, and you can drag the vertices around.
+Now, you can drop a JSON file on it with weights, and you can drag the vertices around. Weights must be dropped after the convex hull has been dropped.
 
 The format is a JSON file containing a dictionary with a key named 'weights' whose value is an array of arrays of arrays, where the outermost array is the rows of the image, then the columns of the image, and finally the weights for that pixel.
 
