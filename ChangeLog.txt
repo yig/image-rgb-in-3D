@@ -6,7 +6,7 @@ and run
 
     websocketd --port=7777 python -u paletteferret.py 6
 
-Drag-and-drop an image, convex hull vertices, and then weights from https://cragl.cs.gmu.edu/singleimage/
+Drag-and-drop an image, convex hull vertices, and then weights from the `Global Recoloring GUI` directory of the Interactive recoloring GUI Zip file available here: https://cragl.cs.gmu.edu/singleimage/
 
 ## 2018-01-15
 
