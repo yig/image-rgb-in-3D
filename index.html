@@ -1126,7 +1126,7 @@
                 createParticles( { 'only_unique_pixels': false, 'clear_overlay_mesh': false } );
                 
                 if( kWebsocket !== null ) {
-                    var websocket_address = 'ws://localhost:' + kWebsocket + '/''
+                    var websocket_address = 'ws://localhost:' + kWebsocket + '/';
                     console.log("Attempting to connect to a websocket server:", websocket_address );
                     socket = new WebSocket( websocket_address );
                     socket.onopen = function(event) { console.log("WebSocket connection successfully opened."); }
@@ -1134,14 +1134,23 @@
                         console.log( 'Received message:' );
                         console.log( event.data );
                         
-                        var payload = JSON.parse( event.data );
-                        for( var picked_vertex_index in payload )
-                        {
-                            var pos = payload[picked_vertex_index];
-                            setVertexIndexToPosition( picked_vertex_index, new THREE.Vector3( pos[0], pos[1], pos[2] ) );
+                        var command = event.data.substr( 0, event.data.indexOf(' ') );
+                        var payload = event.data.substr( command.length + 1 );
+                        var payload = JSON.parse( payload );
+                        if( command === 'set-palette-colors' ) {
+                            for( var picked_vertex_index in payload )
+                            {
+                                var pos = payload[picked_vertex_index];
+                                setVertexIndexToPosition( picked_vertex_index, new THREE.Vector3( pos[0], pos[1], pos[2] ) );
+                            }
+                            // Update the weighted image.
+                            drawRecolorImage();
+                            // Update the 3D view.
+                            render();
                         }
-                        // Update the weighted image.
-                        drawRecolorImage();
+                        else {
+                            console.error( "Unknown command:", command );
+                        }
                     };
                 }
             }

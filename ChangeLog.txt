@@ -1,10 +1,10 @@
-## 2019-06-20
+## 2019-06-21
 
-You can now pass a flag `websocket=PORT` and, if weights are dropped, it will connect to a websocket on localhost with that port and listen for palette changing commands as a JSON dictionary: `{ palette_vertex_index: [ r, g, b ] }`. For example, browse to
+You can now pass a flag `websocket=PORT` and, if weights are dropped, it will connect to a websocket on localhost with that port and listen for commands. The format is <command name> <arguments>. The only supported command right now, `set-palette-colors <argument>` changes palette colors, where the argument is a JSON dictionary: `{ <palette_vertex_index>: [ r, g, b ] }`. For an example, browse to
 http://yig.github.io/image-rgb-in-3D/?websocket=7777
 and run
 
-    websocketd --port=7777 python -u paletteferret.py
+    websocketd --port=7777 python -u paletteferret.py 6
 
 Drag-and-drop an image, convex hull vertices, and then weights from https://cragl.cs.gmu.edu/singleimage/
 

@@ -18,5 +18,5 @@ interval = args.interval
 while True:
     palette_to_change = random.randint( 0, palette_size-1 )
     new_color = [ random.uniform(0,1), random.uniform(0,1), random.uniform(0,1) ]
-    print( json.dumps( { palette_to_change: new_color } ) )
+    print( 'set-palette-colors ' + json.dumps( { palette_to_change: new_color } ) )
     sleep( interval )
