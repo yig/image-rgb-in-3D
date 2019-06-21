@@ -1134,6 +1134,7 @@
                         console.log( 'Received message:' );
                         console.log( event.data );
                         
+                        // From: https://stackoverflow.com/questions/10272773/split-string-on-the-first-white-space-occurrence
                         var command = event.data.substr( 0, event.data.indexOf(' ') );
                         var payload = event.data.substr( command.length + 1 );
                         var payload = JSON.parse( payload );
