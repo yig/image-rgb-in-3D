@@ -1167,6 +1167,7 @@
                 weights = parsed_weights.weights;
                 
                 // Check that each weights sum to 1.
+                var numDontSumToOne = 0;
                 for( var row = 0; row < weights.length; ++row ) {
                     for( var col = 0; col < weights[row].length; ++col ) {
                         var total = 0.;
@@ -1174,9 +1175,12 @@
                             total += weights[row][col][wi];
                         }
                         if( Math.abs( 1. - total ) > 1e-4 ) {
-                            console.warn( "loadWeights() encountered a pixel whose weights don't sum to 1." );
+                            numDontSumToOne += 1;
                         }
                     }
+                }
+                if( numDontSumToOne > 0 ) {
+                    console.warn( "loadWeights() encountered " + numDontSumToOne.toString() + " pixels whose weights don't sum to 1." );
                 }
                 
                 var recolor = document.getElementById('image_recolor');
