@@ -84,6 +84,7 @@
         <script src="js/controls/TrackballControls.js"></script>
         <script src="js/Detector.js"></script>
         <script src="js/libs/stats.min.js"></script>
+        <script src="js/libs/jszip.min.js"></script>
         <script src="js/purl.js"></script>
         
         <script src="js/Blob.js"></script>
@@ -155,6 +156,7 @@
             
             function loadImage( url, name )
             {
+                // Returns a promise that resolves once the image is loaded and displayed.
                 // The 'name' parameter is optional and defaults to 'url'.
                 if( name === undefined ) name = url;
                 
@@ -182,10 +184,15 @@
                 // Wait until loaded.
                 // From: http://stackoverflow.com/questions/280049/javascript-callback-for-knowing-when-an-image-is-loaded/24201249#24201249
                 // UPDATE: img.complete returns true for Firefox before the image is actually complete.
-                img.onload = createParticles;
-                img.onerror = function() { alert( 'Error loading image.' ); console.error( 'Error loading image:' ); console.error( url ) };
-                
-                img.src = url;
+                return new Promise( function( resolve, reject ) {
+                    img.onload = function( event ) { createParticles( event ); resolve(); };
+                    img.onerror = function() {
+                        alert( 'Error loading image.' ); console.error( 'Error loading image:' ); console.error( url );
+                        reject( new Error( 'Error loading image: ' + name ) );
+                    };
+                    
+                    img.src = url;
+                });
             }
             function uploadImageFile()
             {
@@ -201,29 +208,22 @@
                     return;
                 }
                 
+                // A zip file, such as from the layer decomposition GUI's "Save Everything".
+                if( /\.zip$/i.test( file.name ) ) {
+                    loadZip( file ).catch( function( error ) {
+                        console.error( error );
+                        alert( 'Failed to load zip file: ' + error.message );
+                    });
+                    return;
+                }
+                
                 var reader = new FileReader();
                 
                 // If it ends with JSON, treat it as a JSON file
                 // containing the faces and vertices of the overlay mesh.
                 if( /.js(on)?$/.test( file.name ) ) {
                     reader.onload = function() {
-                        var parsed = JSON.parse( reader.result );
-                        // Depending on which keys the JSON contains, we pass
-                        // it to different functions.
-                        // In fact, we can pass it to multiple functions if it
-                        // satisfies multiple loaders' criteria.
-                        if( loadableOverlayMesh( parsed ) ) {
-                            loadOverlayMesh( parsed, file.name );
-                        }
-                        if( loadableWeights( parsed ) ) {
-                            loadWeights( parsed );
-                        }
-                        if( loadableCamera( parsed ) ) {
-                            loadCamera( parsed );
-                        }
-                        if( loadableFloatColors( parsed ) ) {
-                            loadFloatColors( parsed );
-                        }
+                        loadJSON( JSON.parse( reader.result ), file.name );
                         };
                     // read the data as a binary string.
                     reader.readAsBinaryString( file );
@@ -233,6 +233,82 @@
                     // reads the data as a data URL
                     reader.readAsDataURL( file );
                 }
+            }
+            function loadJSON( parsed, name )
+            {
+                // Depending on which keys the JSON contains, we pass
+                // it to different functions.
+                // In fact, we can pass it to multiple functions if it
+                // satisfies multiple loaders' criteria.
+                if( loadableOverlayMesh( parsed ) ) {
+                    loadOverlayMesh( parsed, name );
+                }
+                if( loadableWeights( parsed ) ) {
+                    loadWeights( parsed );
+                }
+                if( loadableCamera( parsed ) ) {
+                    loadCamera( parsed );
+                }
+                if( loadableFloatColors( parsed ) ) {
+                    loadFloatColors( parsed );
+                }
+            }
+            /*
+            Loads a zip file containing an image and JSON files (palette, weights, camera, ...),
+            such as the one saved by the layer decomposition GUI's "Save Everything".
+            That GUI names every file "<image name>-<something>", e.g. "<image name>-weights.js".
+            */
+            async function loadZip( file )
+            {
+                var zip = await JSZip.loadAsync( file );
+                
+                // Ignore directories and macOS metadata. Look at names without folders.
+                var entries = Object.values( zip.files ).filter( function( entry ) {
+                    return !entry.dir && !/(^|\/)__MACOSX\//.test( entry.name );
+                    });
+                function basename( entry ) { return entry.name.split( '/' ).pop(); }
+                var kImageExtensions = /\.(png|jpe?g|gif|webp|bmp)$/i;
+                
+                // Find the image. It's the name the weights file is named after.
+                var imageEntry;
+                var weightsEntry = entries.find( function( entry ) { return /-weights\.js(on)?$/.test( basename( entry ) ); } );
+                if( weightsEntry !== undefined ) {
+                    var imageName = basename( weightsEntry ).replace( /-weights\.js(on)?$/, '' );
+                    imageEntry = entries.find( function( entry ) { return basename( entry ) === imageName; } );
+                }
+                // Otherwise, use the only image in the zip file.
+                if( imageEntry === undefined ) {
+                    var images = entries.filter( function( entry ) { return kImageExtensions.test( basename( entry ) ); } );
+                    if( images.length === 1 ) imageEntry = images[0];
+                }
+                if( imageEntry === undefined ) {
+                    throw new Error( "Couldn't find the image in the zip file." );
+                }
+                
+                // Load the image first, since loading an image clears the palette and weights.
+                var extension = basename( imageEntry ).split( '.' ).pop().toLowerCase();
+                var mime = { 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg' }[ extension ] || ( 'image/' + extension );
+                var imageBlob = new Blob( [ await imageEntry.async( 'arraybuffer' ) ], { type: mime } );
+                var dataURL = await new Promise( function( resolve, reject ) {
+                    var reader = new FileReader();
+                    reader.onload = function() { resolve( reader.result ); };
+                    reader.onerror = function() { reject( reader.error ); };
+                    reader.readAsDataURL( imageBlob );
+                    });
+                await loadImage( dataURL, basename( imageEntry ) );
+                
+                // Parse the JSON files.
+                var jsons = [];
+                for( var i = 0; i < entries.length; ++i ) {
+                    if( !/\.js(on)?$/.test( basename( entries[i] ) ) ) continue;
+                    jsons.push( { name: basename( entries[i] ), parsed: JSON.parse( await entries[i].async( 'string' ) ) } );
+                }
+                
+                // Load the palette (overlay mesh) before the weights, since weights need it
+                // and loading a palette clears the weights.
+                function isOverlayMesh( json ) { return loadableOverlayMesh( json.parsed ); }
+                jsons.filter( isOverlayMesh ).forEach( function( json ) { loadJSON( json.parsed, json.name ); } );
+                jsons.filter( function( json ) { return !isOverlayMesh( json ); } ).forEach( function( json ) { loadJSON( json.parsed, json.name ); } );
             }
             document.getElementById('upload').onchange = uploadImageFile;
             // Drag-and-drop anywhere onto the window.

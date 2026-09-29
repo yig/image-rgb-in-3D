@@ -1,3 +1,7 @@
+## 2026-09-29
+
+You can now drop (or upload) a zip file containing an image and its palette and weights, such as the one saved by "Save Everything" in the layer decomposition GUI (https://github.com/CraGL/fastLayerDecomposition). The image is loaded first, then the palette and weights and any other JSON files. The image is found by name: the weights file is named `<image name>-weights.js`. (If there is no weights file, the zip file must contain exactly one image.)
+
 ## 2019-06-21
 
 You can now pass a flag `websocket=PORT` and, if weights are dropped, it will connect to a websocket on localhost with that port and listen for commands. The format is <command name> <arguments>. The only supported command right now, `set-palette-colors <argument>` changes palette colors, where the argument is a JSON dictionary: `{ <palette_vertex_index>: [ r, g, b ] }`. For an example, browse to

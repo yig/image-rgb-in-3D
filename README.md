@@ -7,6 +7,8 @@ Visualize the colors of an image as a 3D RGB point cloud.
 
 The image to load can be passed as an 'image' GET parameter or uploaded directly from your computer.
 
+You can also drop or upload a zip file containing an image, a palette, and weights, such as the one saved by "Save Everything" in [Efficient palette-based decomposition and recoloring of images via RGBXY-space geometry](https://github.com/CraGL/fastLayerDecomposition).
+
 
 ## Credits
 
